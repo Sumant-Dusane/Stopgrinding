@@ -7,12 +7,13 @@ class AppDelegate: FlutterAppDelegate {
 
   override func applicationDidFinishLaunching(_ notification: Notification) {
     super.applicationDidFinishLaunching(notification)
+  }
 
-    guard let flutterViewController = mainFlutterWindow?.contentViewController as? FlutterViewController else {
+  func configureOverlayApi(binaryMessenger: FlutterBinaryMessenger) {
+    guard overlayApiImpl == nil else {
       return
     }
 
-    let binaryMessenger = flutterViewController.engine.binaryMessenger
     let overlayApiImpl = OverlayApiImpl(binaryMessenger: binaryMessenger)
     OverlayHostApiSetup.setUp(binaryMessenger: binaryMessenger, api: overlayApiImpl)
     self.overlayApiImpl = overlayApiImpl

@@ -29,7 +29,8 @@ AGENT SHOULD STRICTLY FOLLOW `docs/AGENTS.md` AND THIS FILE. If any work conflic
   - Phase 2: Feature Models And Contracts
   - Phase 3: Bridge Foundation
   - Phase 4: Overlay Flow And State
-- Current phase: Phase 5: macOS Window Core
+  - Phase 5: macOS Window Core
+- Current phase: Phase 6: Interaction And Dismiss
 
 ## Phase Format
 Each phase must produce:
@@ -438,3 +439,11 @@ Phase Complete:
 - decision changes:
 - next phase entrypoint:
 ```
+
+Phase Complete:
+- phase: Phase 5: macOS Window Core
+- completed artifacts: `OverlayFacade`, `OverlayCoordinator`, `OverlayWindowManager`, `OverlayWindowController`, and `DisplayService` now back the Pigeon host API; one transparent borderless overlay window is created per active display and rebuilt on display-topology changes.
+- verification: `flutter test`; `flutter build macos`
+- blockers: no manual multi-monitor validation was possible in this environment
+- decision changes: none
+- next phase entrypoint: implement interaction, fullscreen, and dismiss policies as strategy-based native behaviors without pushing that logic into the window classes
