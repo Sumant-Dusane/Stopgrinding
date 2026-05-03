@@ -30,7 +30,8 @@ AGENT SHOULD STRICTLY FOLLOW `docs/AGENTS.md` AND THIS FILE. If any work conflic
   - Phase 3: Bridge Foundation
   - Phase 4: Overlay Flow And State
   - Phase 5: macOS Window Core
-- Current phase: Phase 6: Interaction And Dismiss
+  - Phase 6: Interaction And Dismiss
+- Current phase: Phase 7: Animation Integration
 
 ## Phase Format
 Each phase must produce:
@@ -447,3 +448,11 @@ Phase Complete:
 - blockers: no manual multi-monitor validation was possible in this environment
 - decision changes: none
 - next phase entrypoint: implement interaction, fullscreen, and dismiss policies as strategy-based native behaviors without pushing that logic into the window classes
+
+Phase Complete:
+- phase: Phase 6: Interaction And Dismiss
+- completed artifacts: native `InteractionStrategy`, `FullscreenStrategy`, and `DismissStrategy` implementations now configure runtime overlay behavior; `DismissHandler` drives timeout and double-click dismissal and reports native dismiss events back to Flutter; live `updateSettings()` calls reconfigure a visible overlay session.
+- verification: `flutter test`; `flutter build macos`
+- blockers: no manual verification was possible for fullscreen-above-apps behavior or the double-click dismiss paths
+- decision changes: none
+- next phase entrypoint: replace the placeholder break card with an `AnimationHost` abstraction and integrate the first cat animation path without coupling Flutter app logic to the rendering vendor

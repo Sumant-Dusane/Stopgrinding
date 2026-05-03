@@ -6,6 +6,9 @@ final class OverlayApiImpl: OverlayHostApi {
   init(binaryMessenger: FlutterBinaryMessenger) {
     events = OverlayEvents(binaryMessenger: binaryMessenger)
     overlayFacade = OverlayFacade()
+    overlayFacade.onDismiss = { [weak self] reason in
+      self?.handleNativeDismiss(reason: reason)
+    }
     screenChangeObserver = nil
     screenChangeObserver = NotificationCenter.default.addObserver(
       forName: NSApplication.didChangeScreenParametersNotification,
@@ -89,6 +92,7 @@ final class OverlayApiImpl: OverlayHostApi {
 
   func updateSettings(settings: OverlaySettingsDto) throws {
     self.settings = settings
+    overlayFacade.updateSettings(settings)
   }
 
   func refreshDisplays() throws {
@@ -125,6 +129,23 @@ final class OverlayApiImpl: OverlayHostApi {
         message: error.localizedDescription
       )
     }
+  }
+
+  private func handleNativeDismiss(reason: OverlayDismissReasonDto) {
+    guard let session = activeSession else {
+      state = .idle
+      return
+    }
+
+    state = .dismissed
+    activeSession = nil
+    events.publishDismissed(
+      event: OverlayDismissedDto(
+        sessionId: session.id,
+        reason: reason,
+        dismissedAtEpochMillis: Self.nowMillis()
+      )
+    )
   }
 
   private static func mapDisplay(_ display: NativeDisplayTarget) -> DisplayTargetDto {
