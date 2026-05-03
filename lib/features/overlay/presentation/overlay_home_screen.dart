@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide OverlayState;
 
 import 'package:stopgrinding/features/overlay/domain/dismiss_overlay.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_flow_state.dart';
@@ -6,17 +6,20 @@ import 'package:stopgrinding/features/overlay/domain/overlay_service.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_types.dart';
 import 'package:stopgrinding/features/overlay/domain/show_overlay.dart';
 import 'package:stopgrinding/features/settings/domain/save_settings.dart';
+import 'package:stopgrinding/features/settings/infrastructure/launch_at_startup_service.dart';
 
 class OverlayHomeScreen extends StatefulWidget {
   const OverlayHomeScreen({
     super.key,
     required this.overlayService,
+    required this.launchAtStartupService,
     required this.showOverlay,
     required this.dismissOverlay,
     required this.saveSettings,
   });
 
   final OverlayService overlayService;
+  final LaunchAtStartupService launchAtStartupService;
   final ShowOverlay showOverlay;
   final DismissOverlay dismissOverlay;
   final SaveSettings saveSettings;
@@ -34,6 +37,7 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
   void initState() {
     super.initState();
     widget.overlayService.initialize();
+    widget.launchAtStartupService.initialize();
   }
 
   @override
@@ -41,9 +45,13 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('StopGrinding')),
       body: AnimatedBuilder(
-        animation: widget.overlayService,
+        animation: Listenable.merge(<Listenable>[
+          widget.overlayService,
+          widget.launchAtStartupService,
+        ]),
         builder: (context, _) {
           final OverlayFlowState state = widget.overlayService.state;
+          final LaunchAtStartupService startup = widget.launchAtStartupService;
           _syncDraftIfNeeded(state.settings);
           final OverlaySettings settings = _draftSettings ?? state.settings;
 
@@ -52,9 +60,10 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _StatusPanel(state: state),
+                _DebugPanel(state: state, startup: startup),
                 const SizedBox(height: 24),
                 _ActionsRow(
+                  state: state,
                   onShowOverlay: () {
                     widget.showOverlay();
                   },
@@ -64,6 +73,16 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
                     );
                   },
                   onRefreshDisplays: widget.overlayService.refreshDisplays,
+                  onRecover: widget.overlayService.recover,
+                  onPause: widget.overlayService.pause,
+                  onResume: widget.overlayService.resume,
+                ),
+                const SizedBox(height: 24),
+                _StartupPanel(
+                  startup: startup,
+                  onChanged: (enabled) {
+                    widget.launchAtStartupService.setEnabled(enabled);
+                  },
                 ),
                 const SizedBox(height: 24),
                 _SettingsPanel(
@@ -176,14 +195,16 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
   }
 }
 
-class _StatusPanel extends StatelessWidget {
-  const _StatusPanel({required this.state});
+class _DebugPanel extends StatelessWidget {
+  const _DebugPanel({required this.state, required this.startup});
 
   final OverlayFlowState state;
+  final LaunchAtStartupService startup;
 
   @override
   Widget build(BuildContext context) {
     final OverlaySettings settings = state.settings;
+    final OverlayResult? result = state.lastResult;
 
     return Card(
       child: Padding(
@@ -192,7 +213,7 @@ class _StatusPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Overlay status',
+              'Debug status',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 16),
@@ -207,18 +228,31 @@ class _StatusPanel extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Dismiss policy: ${settings.dismissPolicy.type.name}, early dismiss: ${settings.dismissPolicy.allowEarlyDismiss}',
+              'Last overlay result: ${_resultSummary(result) ?? 'No completed session yet'}',
             ),
+            if (result != null) ...[
+              const SizedBox(height: 8),
+              Text('Last result time: ${_formatDateTime(result.occurredAt)}'),
+            ],
             const SizedBox(height: 8),
             Text('Displays: ${state.displays.length}'),
-            if (state.lastDismissReason != null) ...[
-              const SizedBox(height: 8),
-              Text('Last dismiss: ${state.lastDismissReason!.name}'),
-            ],
+            const SizedBox(height: 8),
+            Text(
+              'Launch at login: ${startup.isInitialized ? (startup.isEnabled ? 'enabled' : 'disabled') : 'loading'}',
+            ),
             if (state.lastError != null) ...[
               const SizedBox(height: 8),
               Text(
-                'Last error: ${state.lastError}',
+                'Last overlay error: ${state.lastError}',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ],
+            if (startup.lastError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Launch-at-login error: ${startup.lastError}',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.error,
                 ),
@@ -233,14 +267,22 @@ class _StatusPanel extends StatelessWidget {
 
 class _ActionsRow extends StatelessWidget {
   const _ActionsRow({
+    required this.state,
     required this.onShowOverlay,
     required this.onDismissOverlay,
     required this.onRefreshDisplays,
+    required this.onRecover,
+    required this.onPause,
+    required this.onResume,
   });
 
+  final OverlayFlowState state;
   final VoidCallback onShowOverlay;
   final VoidCallback onDismissOverlay;
   final Future<void> Function() onRefreshDisplays;
+  final Future<void> Function() onRecover;
+  final Future<void> Function() onPause;
+  final Future<void> Function() onResume;
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +292,7 @@ class _ActionsRow extends StatelessWidget {
       children: [
         FilledButton(
           onPressed: onShowOverlay,
-          child: const Text('Show overlay'),
+          child: const Text('Manual trigger'),
         ),
         OutlinedButton(
           onPressed: onDismissOverlay,
@@ -260,7 +302,57 @@ class _ActionsRow extends StatelessWidget {
           onPressed: onRefreshDisplays,
           child: const Text('Refresh displays'),
         ),
+        TextButton(
+          onPressed: onRecover,
+          child: const Text('Run recovery'),
+        ),
+        TextButton(
+          onPressed: state.lifecycle == OverlayState.paused ? onResume : onPause,
+          child: Text(
+            state.lifecycle == OverlayState.paused ? 'Resume schedule' : 'Pause schedule',
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _StartupPanel extends StatelessWidget {
+  const _StartupPanel({
+    required this.startup,
+    required this.onChanged,
+  });
+
+  final LaunchAtStartupService startup;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Startup',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: startup.isEnabled,
+              onChanged: startup.isLoading ? null : onChanged,
+              title: const Text('Launch at login'),
+              subtitle: Text(
+                startup.isLoading
+                    ? 'Updating startup setting...'
+                    : 'Start StopGrinding automatically when you log in.',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -458,6 +550,21 @@ String _dismissPolicyLabel(DismissPolicyType policy) {
       return 'Double-click anywhere';
     case DismissPolicyType.doubleClickCat:
       return 'Double-click cat';
+  }
+}
+
+String? _resultSummary(OverlayResult? result) {
+  if (result == null) {
+    return null;
+  }
+
+  switch (result.type) {
+    case OverlayResultType.shown:
+      return 'Overlay shown${result.sessionId == null ? '' : ' (${result.sessionId})'}';
+    case OverlayResultType.dismissed:
+      return 'Dismissed: ${result.dismissReason?.name ?? 'unknown'}';
+    case OverlayResultType.failed:
+      return 'Failed: ${result.message ?? 'unknown error'}';
   }
 }
 

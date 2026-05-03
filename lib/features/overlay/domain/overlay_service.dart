@@ -140,6 +140,30 @@ class OverlayService extends ChangeNotifier {
     return _controller.refreshDisplays();
   }
 
+  Future<void> recover() async {
+    try {
+      await _controller.refreshDisplays();
+      final OverlayStatus status = await _controller.getStatus();
+
+      if (status.state == OverlayState.visible && status.activeSession != null) {
+        _transitionTo(
+          OverlayState.visible,
+          activeSession: status.activeSession,
+          displays: status.activeSession?.displayTargets ?? _state.displays,
+          nextTriggerAt: null,
+          lastError: null,
+        );
+        return;
+      }
+
+      if (!_state.isOverlayActive) {
+        await _scheduleNext(_state.settings.schedule);
+      }
+    } catch (error) {
+      _fail(error);
+    }
+  }
+
   @override
   void dispose() {
     _controllerEventsSubscription.cancel();
@@ -182,6 +206,11 @@ class OverlayService extends ChangeNotifier {
           activeSession: event.session,
           displays: event.session?.displayTargets ?? _state.displays,
           nextTriggerAt: null,
+          lastResult: OverlayResult(
+            type: OverlayResultType.shown,
+            occurredAt: event.occurredAt ?? DateTime.now(),
+            sessionId: event.session?.id,
+          ),
           lastError: null,
         );
         return;
@@ -209,6 +238,11 @@ class OverlayService extends ChangeNotifier {
       OverlayState.dismissed,
       activeSession: null,
       nextTriggerAt: null,
+      lastResult: OverlayResult(
+        type: OverlayResultType.dismissed,
+        occurredAt: event.occurredAt ?? DateTime.now(),
+        dismissReason: event.dismissReason,
+      ),
       lastDismissReason: event.dismissReason,
     );
     _transitionTo(OverlayState.cooldown, nextTriggerAt: null);
@@ -220,6 +254,7 @@ class OverlayService extends ChangeNotifier {
     OverlaySession? activeSession,
     DateTime? nextTriggerAt,
     List<DisplayTarget>? displays,
+    Object? lastResult = _stateSentinel,
     OverlayDismissReason? lastDismissReason,
     String? lastError,
   }) {
@@ -229,6 +264,9 @@ class OverlayService extends ChangeNotifier {
         activeSession: activeSession,
         nextTriggerAt: nextTriggerAt,
         displays: displays ?? _state.displays,
+        lastResult: identical(lastResult, _stateSentinel)
+            ? _state.lastResult
+            : lastResult as OverlayResult?,
         lastDismissReason: lastDismissReason,
         lastError: lastError,
         lastUpdatedAt: DateTime.now(),
@@ -258,7 +296,14 @@ class OverlayService extends ChangeNotifier {
       OverlayState.idle,
       activeSession: null,
       nextTriggerAt: null,
+      lastResult: OverlayResult(
+        type: OverlayResultType.failed,
+        occurredAt: DateTime.now(),
+        message: error.toString(),
+      ),
       lastError: error.toString(),
     );
   }
 }
+
+const Object _stateSentinel = Object();

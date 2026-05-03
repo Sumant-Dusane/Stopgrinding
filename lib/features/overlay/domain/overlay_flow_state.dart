@@ -7,6 +7,7 @@ class OverlayFlowState {
     this.activeSession,
     this.nextTriggerAt,
     this.displays = const <DisplayTarget>[],
+    this.lastResult,
     this.lastDismissReason,
     this.lastError,
     this.lastUpdatedAt,
@@ -26,6 +27,7 @@ class OverlayFlowState {
   final OverlaySession? activeSession;
   final DateTime? nextTriggerAt;
   final List<DisplayTarget> displays;
+  final OverlayResult? lastResult;
   final OverlayDismissReason? lastDismissReason;
   final String? lastError;
   final DateTime? lastUpdatedAt;
@@ -40,6 +42,7 @@ class OverlayFlowState {
     Object? activeSession = _sentinel,
     Object? nextTriggerAt = _sentinel,
     List<DisplayTarget>? displays,
+    Object? lastResult = _sentinel,
     Object? lastDismissReason = _sentinel,
     Object? lastError = _sentinel,
     DateTime? lastUpdatedAt,
@@ -55,6 +58,9 @@ class OverlayFlowState {
           ? this.nextTriggerAt
           : nextTriggerAt as DateTime?,
       displays: displays ?? this.displays,
+      lastResult: identical(lastResult, _sentinel)
+          ? this.lastResult
+          : lastResult as OverlayResult?,
       lastDismissReason: identical(lastDismissReason, _sentinel)
           ? this.lastDismissReason
           : lastDismissReason as OverlayDismissReason?,

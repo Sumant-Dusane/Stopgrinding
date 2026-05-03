@@ -15,6 +15,7 @@ import 'package:stopgrinding/features/scheduler/domain/break_scheduler.dart';
 import 'package:stopgrinding/features/scheduler/domain/scheduler_service.dart';
 import 'package:stopgrinding/features/settings/domain/in_memory_overlay_settings_repository.dart';
 import 'package:stopgrinding/features/settings/domain/save_settings.dart';
+import 'package:stopgrinding/features/settings/infrastructure/launch_at_startup_service.dart';
 
 void main() {
   testWidgets('boots the phase 4 overlay shell', (WidgetTester tester) async {
@@ -27,6 +28,9 @@ void main() {
     );
     final AppDi di = AppDi(
       overlayService: overlayService,
+      launchAtStartupService: LaunchAtStartupService(
+        adapter: _FakeLaunchAtStartupAdapter(),
+      ),
       showOverlay: ShowOverlay(overlayService),
       dismissOverlay: DismissOverlay(overlayService),
       saveSettings: SaveSettings(overlayService),
@@ -37,10 +41,31 @@ void main() {
 
     expect(find.text('StopGrinding'), findsOneWidget);
     expect(find.textContaining('Lifecycle:'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Show overlay'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Manual trigger'), findsOneWidget);
+    expect(find.text('Startup'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Save settings'), findsOneWidget);
   });
+}
+
+class _FakeLaunchAtStartupAdapter implements LaunchAtStartupAdapter {
+  bool enabled = false;
+
+  @override
+  Future<void> disable() async {
+    enabled = false;
+  }
+
+  @override
+  Future<void> enable() async {
+    enabled = true;
+  }
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<bool> isEnabled() async => enabled;
 }
 
 class _FakeOverlayController implements OverlayController {

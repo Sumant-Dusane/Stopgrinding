@@ -11,6 +11,7 @@ Map<String, WidgetBuilder> appRoutes(AppDi di) {
   return {
     AppRoute.home: (_) => OverlayHomeScreen(
       overlayService: di.overlayService,
+      launchAtStartupService: di.launchAtStartupService,
       showOverlay: di.showOverlay,
       dismissOverlay: di.dismissOverlay,
       saveSettings: di.saveSettings,

@@ -27,6 +27,7 @@ void main() {
       expect(service.state.lifecycle, OverlayState.scheduled);
       expect(service.state.nextTriggerAt, scheduler.nextTriggerAt);
       expect(controller.updatedSettings, isNotNull);
+      expect(service.state.lastResult, isNull);
     },
   );
 
@@ -72,6 +73,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(service.state.lifecycle, OverlayState.visible);
+      expect(service.state.lastResult?.type, OverlayResultType.shown);
 
       controller.emit(
         OverlayEvent(
@@ -86,6 +88,11 @@ void main() {
 
       expect(service.state.lifecycle, OverlayState.scheduled);
       expect(service.state.lastDismissReason, isNull);
+      expect(service.state.lastResult?.type, OverlayResultType.dismissed);
+      expect(
+        service.state.lastResult?.dismissReason,
+        OverlayDismissReason.timeout,
+      );
       expect(
         transitions,
         containsAllInOrder(<OverlayState>[

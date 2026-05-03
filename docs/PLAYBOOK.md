@@ -33,7 +33,8 @@ AGENT SHOULD STRICTLY FOLLOW `docs/AGENTS.md` AND THIS FILE. If any work conflic
   - Phase 6: Interaction And Dismiss
   - Phase 7: Animation Integration
   - Phase 8: Settings UI And Persistence
-- Current phase: Phase 9: Startup And Debugging
+  - Phase 9: Startup And Debugging
+- Current phase: Phase 10: Polish And Release Readiness
 
 ## Phase Format
 Each phase must produce:
@@ -474,3 +475,11 @@ Phase Complete:
 - blockers: no manual restart validation was performed in this environment, though the persistence dependency was resolved and the app built successfully
 - decision changes: persistence uses `shared_preferences` with the async API rather than an in-memory repository
 - next phase entrypoint: add launch-at-login support and a clearer debug/status surface around current lifecycle, next trigger, last overlay result, and manual trigger behavior
+
+Phase Complete:
+- phase: Phase 9: Startup And Debugging
+- completed artifacts: added a `LaunchAtStartupService` backed by `launch_at_startup` and `package_info_plus`; wired macOS login-item support through `LaunchAtLogin` in `MainFlutterWindow.swift` and the Xcode project; expanded the home screen into a clearer debug surface with manual trigger, recovery, pause/resume scheduling, launch-at-login toggle, and persistent last overlay result reporting.
+- verification: `flutter test`; `flutter build macos`
+- blockers: no manual end-to-end verification was possible for actual macOS login-item behavior after a real logout/login cycle
+- decision changes: launch-at-login uses `launch_at_startup` on the Dart side with the native `LaunchAtLogin` Swift package on macOS
+- next phase entrypoint: focus on repeated-session polish, timing cleanup, and release-hardening rather than new architecture

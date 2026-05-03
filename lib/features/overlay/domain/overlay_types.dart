@@ -32,6 +32,12 @@ enum OverlayEventType {
   stateChanged,
 }
 
+enum OverlayResultType {
+  shown,
+  dismissed,
+  failed,
+}
+
 class OverlayDuration {
   const OverlayDuration(this.value);
 
@@ -140,4 +146,20 @@ class OverlayEvent {
   final List<DisplayTarget> displays;
   final String? message;
   final DateTime? occurredAt;
+}
+
+class OverlayResult {
+  const OverlayResult({
+    required this.type,
+    required this.occurredAt,
+    this.dismissReason,
+    this.message,
+    this.sessionId,
+  });
+
+  final OverlayResultType type;
+  final DateTime occurredAt;
+  final OverlayDismissReason? dismissReason;
+  final String? message;
+  final String? sessionId;
 }
