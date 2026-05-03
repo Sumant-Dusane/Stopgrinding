@@ -3,8 +3,8 @@ import 'package:stopgrinding/features/overlay/domain/overlay_service.dart';
 import 'package:stopgrinding/features/overlay/domain/show_overlay.dart';
 import 'package:stopgrinding/features/scheduler/domain/scheduler_service.dart';
 import 'package:stopgrinding/features/scheduler/domain/timer_break_scheduler.dart';
-import 'package:stopgrinding/features/settings/domain/in_memory_overlay_settings_repository.dart';
 import 'package:stopgrinding/features/settings/domain/save_settings.dart';
+import 'package:stopgrinding/features/settings/infrastructure/shared_preferences_overlay_settings_repository.dart';
 import 'package:stopgrinding/platform/bridge/pigeon_overlay_bridge.dart';
 
 class AppDi {
@@ -21,7 +21,7 @@ class AppDi {
     final overlayService = OverlayService(
       controller: overlayBridge,
       schedulerService: schedulerService,
-      settingsRepository: InMemoryOverlaySettingsRepository(),
+      settingsRepository: SharedPreferencesOverlaySettingsRepository(),
     );
 
     return AppDi(

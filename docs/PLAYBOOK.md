@@ -32,7 +32,8 @@ AGENT SHOULD STRICTLY FOLLOW `docs/AGENTS.md` AND THIS FILE. If any work conflic
   - Phase 5: macOS Window Core
   - Phase 6: Interaction And Dismiss
   - Phase 7: Animation Integration
-- Current phase: Phase 8: Settings UI And Persistence
+  - Phase 8: Settings UI And Persistence
+- Current phase: Phase 9: Startup And Debugging
 
 ## Phase Format
 Each phase must produce:
@@ -465,3 +466,11 @@ Phase Complete:
 - blockers: no manual visual verification was possible for timing polish or repeated animation cycles in this environment
 - decision changes: first implementation uses a native AppKit animation host with an animated cat sprite placeholder rather than `Rive`, while preserving the `AnimationHost` swap point
 - next phase entrypoint: build the real settings screens and persistence flow so interval, duration, interaction mode, fullscreen behavior, and dismiss policy are editable from Flutter and reflected back into the native overlay
+
+Phase Complete:
+- phase: Phase 8: Settings UI And Persistence
+- completed artifacts: replaced the in-memory settings store with a `shared_preferences`-backed repository; expanded the Flutter home screen into a usable settings panel for interval, duration, interaction mode, fullscreen behavior, dismiss policy, and early dismiss; saved settings now reload on startup and propagate back into the native overlay path.
+- verification: `flutter test`; `flutter build macos`
+- blockers: no manual restart validation was performed in this environment, though the persistence dependency was resolved and the app built successfully
+- decision changes: persistence uses `shared_preferences` with the async API rather than an in-memory repository
+- next phase entrypoint: add launch-at-login support and a clearer debug/status surface around current lifecycle, next trigger, last overlay result, and manual trigger behavior

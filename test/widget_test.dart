@@ -38,7 +38,8 @@ void main() {
     expect(find.text('StopGrinding'), findsOneWidget);
     expect(find.textContaining('Lifecycle:'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Show overlay'), findsOneWidget);
-    expect(find.widgetWithText(TextButton, 'Set 30m cadence'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Save settings'), findsOneWidget);
   });
 }
 
