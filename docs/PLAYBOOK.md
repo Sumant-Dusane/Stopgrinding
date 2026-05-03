@@ -31,7 +31,8 @@ AGENT SHOULD STRICTLY FOLLOW `docs/AGENTS.md` AND THIS FILE. If any work conflic
   - Phase 4: Overlay Flow And State
   - Phase 5: macOS Window Core
   - Phase 6: Interaction And Dismiss
-- Current phase: Phase 7: Animation Integration
+  - Phase 7: Animation Integration
+- Current phase: Phase 8: Settings UI And Persistence
 
 ## Phase Format
 Each phase must produce:
@@ -456,3 +457,11 @@ Phase Complete:
 - blockers: no manual verification was possible for fullscreen-above-apps behavior or the double-click dismiss paths
 - decision changes: none
 - next phase entrypoint: replace the placeholder break card with an `AnimationHost` abstraction and integrate the first cat animation path without coupling Flutter app logic to the rendering vendor
+
+Phase Complete:
+- phase: Phase 7: Animation Integration
+- completed artifacts: added native `AnimationHost` abstraction in `macos/Runner/Overlay/animation_host.swift`; integrated the first AppKit-backed cat animation path with enter, idle, and exit phases; wired animation lifecycle to native overlay show/hide without exposing animation implementation details to Flutter app logic.
+- verification: `flutter test`; `flutter build macos`
+- blockers: no manual visual verification was possible for timing polish or repeated animation cycles in this environment
+- decision changes: first implementation uses a native AppKit animation host with an animated cat sprite placeholder rather than `Rive`, while preserving the `AnimationHost` swap point
+- next phase entrypoint: build the real settings screens and persistence flow so interval, duration, interaction mode, fullscreen behavior, and dismiss policy are editable from Flutter and reflected back into the native overlay

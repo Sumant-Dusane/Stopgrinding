@@ -385,7 +385,10 @@ final class OverlayWindowController {
     window.ignoresMouseEvents = true
     window.isReleasedWhenClosed = false
 
-    let overlayView = OverlayVisualView(frame: display.screen.frame)
+    let overlayView = OverlayVisualView(
+      frame: display.screen.frame,
+      animationHost: NativeCatAnimationHost()
+    )
     window.contentView = overlayView
 
     self.window = window
@@ -404,6 +407,7 @@ final class OverlayWindowController {
     dismissTarget: DismissGestureTarget
   ) {
     self.display = display
+    windowDuration = TimeInterval(settings.durationMillis) / 1000
 
     window.setFrame(display.screen.frame, display: true)
     window.setFrameOrigin(display.screen.frame.origin)
@@ -431,15 +435,20 @@ final class OverlayWindowController {
 
   func show() {
     window.orderFrontRegardless()
+    overlayView.playAnimation(duration: windowDuration)
   }
 
   func hide() {
+    overlayView.stopAnimation()
     window.orderOut(nil)
   }
 
   func close() {
+    overlayView.stopAnimation()
     window.close()
   }
+
+  private var windowDuration: TimeInterval = 120
 }
 
 final class DisplayService {
@@ -481,10 +490,11 @@ final class OverlayWindow: NSWindow {
 }
 
 final class OverlayVisualView: NSView {
-  override init(frame frameRect: NSRect) {
+  init(frame frameRect: NSRect, animationHost: AnimationHost) {
     self.backdropView = NSVisualEffectView(frame: .zero)
     self.titleLabel = NSTextField(labelWithString: "")
     self.subtitleLabel = NSTextField(labelWithString: "")
+    self.animationHost = animationHost
     super.init(frame: frameRect)
     configure()
   }
@@ -496,6 +506,7 @@ final class OverlayVisualView: NSView {
   private let backdropView: NSVisualEffectView
   private let titleLabel: NSTextField
   private let subtitleLabel: NSTextField
+  private let animationHost: AnimationHost
   private var rootDoubleClickGestureRecognizer: NSClickGestureRecognizer?
   private var cardDoubleClickGestureRecognizer: NSClickGestureRecognizer?
   private var onDismissGesture: (() -> Void)?
@@ -531,8 +542,23 @@ final class OverlayVisualView: NSView {
     case .anywhere:
       rootDoubleClickGestureRecognizer = installDoubleClickGesture(on: self)
     case .overlayCard:
-      cardDoubleClickGestureRecognizer = installDoubleClickGesture(on: backdropView)
+      cardDoubleClickGestureRecognizer = installDoubleClickGesture(
+        on: animationHost.gestureTargetView
+      )
     }
+  }
+
+  func playAnimation(duration: TimeInterval) {
+    animationHost.play(duration: duration)
+  }
+
+  func stopAnimation() {
+    animationHost.stop()
+  }
+
+  override func layout() {
+    super.layout()
+    animationHost.updateLayout(in: bounds)
   }
 
   @objc
@@ -611,6 +637,7 @@ final class OverlayVisualView: NSView {
     addSubview(backdropView)
     addSubview(titleLabel)
     addSubview(subtitleLabel)
+    animationHost.attach(to: self)
 
     NSLayoutConstraint.activate([
       backdropView.centerXAnchor.constraint(equalTo: centerXAnchor),
