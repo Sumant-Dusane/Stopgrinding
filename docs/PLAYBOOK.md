@@ -34,7 +34,8 @@ AGENT SHOULD STRICTLY FOLLOW `docs/AGENTS.md` AND THIS FILE. If any work conflic
   - Phase 7: Animation Integration
   - Phase 8: Settings UI And Persistence
   - Phase 9: Startup And Debugging
-- Current phase: Phase 10: Polish And Release Readiness
+  - Phase 10: Polish And Release Readiness
+- Current phase: Optional Phase 11: Windows Port
 
 ## Phase Format
 Each phase must produce:
@@ -483,3 +484,11 @@ Phase Complete:
 - blockers: no manual end-to-end verification was possible for actual macOS login-item behavior after a real logout/login cycle
 - decision changes: launch-at-login uses `launch_at_startup` on the Dart side with the native `LaunchAtLogin` Swift package on macOS
 - next phase entrypoint: focus on repeated-session polish, timing cleanup, and release-hardening rather than new architecture
+
+Phase Complete:
+- phase: Phase 10: Polish And Release Readiness
+- completed artifacts: removed dead scheduler state, added timer scheduler regression tests for repeated use and pause/resume timing, and refreshed `README.md` so repo docs match the shipped macOS architecture and verification flow.
+- verification: `flutter test`; `flutter analyze`; `flutter build macos`
+- blockers: no manual repeated-session or multi-monitor validation was possible in this environment
+- decision changes: none
+- next phase entrypoint: if Windows support is needed, implement the optional Phase 11 bridge and native overlay family without changing Dart app logic

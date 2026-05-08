@@ -72,7 +72,7 @@ class _FakeOverlayController implements OverlayController {
   final StreamController<domain.OverlayEvent> _eventsController =
       StreamController<domain.OverlayEvent>.broadcast();
 
-  domain.OverlayStatus _status = domain.OverlayStatus(
+  final domain.OverlayStatus _status = domain.OverlayStatus(
     state: domain.OverlayState.idle,
   );
 

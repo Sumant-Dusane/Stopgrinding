@@ -17,7 +17,6 @@ class TimerBreakScheduler implements BreakScheduler {
       StreamController<DateTime>.broadcast();
 
   Timer? _timer;
-  OverlaySchedule? _schedule;
   DateTime? _nextTriggerAt;
   Duration? _remaining;
 
@@ -29,7 +28,6 @@ class TimerBreakScheduler implements BreakScheduler {
 
   @override
   Future<void> start(OverlaySchedule schedule) async {
-    _schedule = schedule;
     _remaining = null;
     _scheduleNextTick(
       target: _strategy.nextTriggerAt(now: _now(), schedule: schedule),
