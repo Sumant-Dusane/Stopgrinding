@@ -35,7 +35,7 @@ AGENT SHOULD STRICTLY FOLLOW `docs/AGENTS.md` AND THIS FILE. If any work conflic
   - Phase 8: Settings UI And Persistence
   - Phase 9: Startup And Debugging
   - Phase 10: Polish And Release Readiness
-- Current phase: Optional Phase 11: Windows Port
+- Current phase: Phase 11: GIF Catalog And Contract Refresh
 
 ## Phase Format
 Each phase must produce:
@@ -411,7 +411,144 @@ Stabilize the macOS product for real use before Windows work begins.
 
 ---
 
-## Optional Phase 11: Windows Port
+## Phase 11: GIF Catalog And Contract Refresh
+### Goal
+Replace cat-specific overlay assumptions with a durable GIF catalog model and selection flow.
+
+### Scope
+- update Dart domain types and Pigeon DTOs for:
+  - selected overlay media id
+  - overlay catalog item metadata
+  - optional catalog-fetch bridge call
+- remove new product/docs assumptions that depend on a single cat animation
+- define bundled asset folder conventions for GIF organization and labels
+- update settings flow design so users can choose a GIF from a dropdown or equivalent selector
+- preserve existing overlay lifecycle and dismiss behavior while making content source replaceable
+
+### Deliverables
+- code and docs no longer assume a single cat asset
+- typed catalog model exists across Flutter and native boundary
+- asset-folder convention is documented and ready for implementation
+
+### Verification
+- static analysis
+- contract generation/build verification
+- settings selection state round-trip test where practical
+
+### Exit Criteria
+- overlay content is modeled as selectable catalog data, not a hardcoded animation choice
+- contract stays stable enough for later updater and UI work
+
+### Handoff Note Template
+- catalog model added
+- asset conventions decided
+- open migration risks
+
+---
+
+## Phase 12: Transparent Settings And Comic Theme System
+### Goal
+Revamp the app shell into a transparent comic-style experience with a maintainable theme architecture.
+
+### Scope
+- introduce centralized theme tokens/specs and theme composition entrypoints
+- refactor UI surfaces to consume semantic theme values instead of local styling
+- redesign settings screen toward transparent/translucent panels with readability safeguards
+- define a comic visual language:
+  - typography
+  - color tokens
+  - card/chrome treatment
+  - button/input styling
+- ensure future broad theme swaps can usually be done in at most `3 files`
+
+### Deliverables
+- maintainable theme system with centralized tokens
+- comic-style Flutter shell
+- transparent settings treatment aligned with macOS conventions
+
+### Verification
+- `flutter test`
+- `flutter analyze`
+- manual visual check on desktop sizes
+- confirm a theme variant can be swapped by touching only the intended theme files
+
+### Exit Criteria
+- app styling is centralized and reusable
+- settings UI is visually revamped without scattering style logic across features
+
+### Handoff Note Template
+- theme files introduced
+- transparency constraints
+- remaining visual debt
+
+---
+
+## Phase 13: macOS Quick-Open Nudge And Settings UX Flow
+### Goal
+Add a lightweight macOS entrypoint that opens settings quickly without depending on the main screen layout.
+
+### Scope
+- design and implement a small macOS top-chrome nudge above or alongside the title/app bar
+- clicking the nudge should reveal or focus the settings experience
+- keep this behavior in app-shell/macOS shell integration, not in overlay windows
+- refine settings navigation around the new GIF selector and transparent layout
+- ensure the quick-open affordance works consistently after launch-at-login and on repeated opens
+
+### Deliverables
+- persistent quick-open settings affordance in the macOS shell
+- cleaner settings entry flow for day-to-day use
+
+### Verification
+- manual open/focus flow testing
+- restart/login-item retest
+- no regression in overlay scheduling while settings are opened repeatedly
+
+### Exit Criteria
+- users can reach settings quickly without hunting through the main app content
+- shell entrypoint does not compromise existing architecture boundaries
+
+### Handoff Note Template
+- nudge placement used
+- focus/open behavior
+- macOS-specific limitations
+
+---
+
+## Phase 14: Update Delivery And GIF Content Expansion
+### Goal
+Ship a real update path so users can discover and install app releases that add new GIF packs.
+
+### Scope
+- choose and integrate macOS update delivery:
+  - `Sparkle` preferred if compatible with distribution path
+  - equivalent release-feed solution acceptable if better suited
+- add user-facing update messaging/status surface
+- document release process for shipping new GIF assets through app updates
+- ensure update checks do not leak into overlay-domain logic
+- connect the updater UX to the GIF catalog story so users understand why an update matters
+
+### Deliverables
+- working update mechanism or clearly bounded release-feed notifier
+- docs for packaging and shipping new GIF content
+- user-visible update affordance/message
+
+### Verification
+- build verification with updater integration
+- manual update-check path if environment allows
+- docs review for release flow completeness
+
+### Exit Criteria
+- users have a supported path to receive newly released GIF content
+- updater logic is kept separate from overlay scheduling/runtime logic
+
+### Handoff Note Template
+- updater choice
+- release flow summary
+- signing/notarization blockers
+
+---
+
+## Optional Phase 15: Windows Port
 ### Goal
 Add Windows by implementing the same abstraction family, not by altering app logic.
 
@@ -491,4 +628,4 @@ Phase Complete:
 - verification: `flutter test`; `flutter analyze`; `flutter build macos`
 - blockers: no manual repeated-session or multi-monitor validation was possible in this environment
 - decision changes: none
-- next phase entrypoint: if Windows support is needed, implement the optional Phase 11 bridge and native overlay family without changing Dart app logic
+- next phase entrypoint: replace cat-specific overlay assumptions with a GIF catalog model, then rebuild the settings and shell UX around transparent comic styling and update-driven content expansion

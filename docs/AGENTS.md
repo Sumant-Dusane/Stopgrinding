@@ -11,9 +11,12 @@ AGENT SHOULD STRICTLY FOLLOW THIS MD FILE. If any planned code, architecture, na
 - Desktop app for macOS first, Windows second.
 - Every `1h` by default, show an overlay above user apps.
 - Overlay duration: `2m` by default.
-- Overlay content: animated cat walks in, stays, leaves.
+- Overlay content: user-selectable GIF overlay chosen from bundled asset folders.
 - Main app shell: `Flutter`.
 - Overlay engine: native per platform.
+- Settings surface should feel light and transparent rather than panel-heavy.
+- Main app shell should expose a small macOS top-chrome nudge that opens settings quickly.
+- Visual direction should be funny and comic-like, while remaining easy to retheme centrally.
 
 ## Locked Decisions
 - Main UI tech: `Flutter`.
@@ -30,7 +33,11 @@ AGENT SHOULD STRICTLY FOLLOW THIS MD FILE. If any planned code, architecture, na
   - blocking vs non-blocking overlay
   - show above fullscreen apps or not
   - early dismiss behavior
+- User-configurable overlay content:
+  - selected GIF from app-managed asset catalog
 - Dismiss examples allowed: double click cat, double click anywhere.
+- macOS distribution must support app-update messaging for newly shipped GIF content.
+- Theme customization must be centralized so a major visual retheme can be done in at most `3 files` without widespread widget refactors.
 
 ## Non-Goals For V1
 - No Windows implementation now.
@@ -38,6 +45,7 @@ AGENT SHOULD STRICTLY FOLLOW THIS MD FILE. If any planned code, architecture, na
 - No screen-content inspection.
 - No complex background agent/daemon unless required by implementation constraints.
 - No direct dependency of feature/domain logic on AppKit or Win32.
+- No user-imported GIF filesystem picker in v1; GIF choices come from shipped app assets and app updates.
 
 ## Architecture
 Use a lightweight feature-first architecture plus explicit pattern mapping.
@@ -165,6 +173,7 @@ Recommended Pigeon APIs:
 - `showOverlay(OverlayRequestDto request)`
 - `hideOverlay(HideOverlayRequestDto request)`
 - `updateSettings(OverlaySettingsDto settings)`
+- `getOverlayCatalog()`
 - `refreshDisplays()`
 - `getOverlayStatus()`
 
@@ -184,12 +193,16 @@ Use value objects and enums. Avoid flat bags of booleans.
 - `DisplayTarget`
 - `OverlayDuration`
 - `DismissPolicy`
+- `OverlayCatalogItem`
+- `ThemeSpec`
 
 ### Enums
 - `InteractionMode { blocking, passthrough }`
 - `FullscreenMode { disabled, enabled }`
 - `MonitorScope { allDisplays }`
 - `DismissPolicyType { timedOnly, doubleClickAnywhere, doubleClickCat }`
+
+Rule: `DismissPolicyType.doubleClickCat` should be interpreted as double-clicking the active GIF subject/media hit area until a more neutral rename is introduced in a contract-safe phase.
 
 ## macOS Native Subsystem
 Must use AppKit.
@@ -211,7 +224,7 @@ Must use AppKit.
 - `OverlayWindowManager`: create/manage one overlay window per display
 - `OverlayWindowController`: per-window control
 - `DisplayService`: discover and refresh screens
-- `AnimationHost`: host cat animation technology
+- `AnimationHost`: host GIF rendering technology and overlay media lifecycle
 - `DismissHandler`: translate user gestures into dismiss actions
 
 ## Flutter/Dart Responsibilities
@@ -231,6 +244,8 @@ Must use AppKit.
 - settings UI
 - settings persistence orchestration
 - `SaveSettings`
+- overlay catalog selection
+- theme application entrypoint
 
 ### `features/scheduler`
 - schedule logic
@@ -270,20 +285,36 @@ Must use AppKit.
 - Dismiss policy should be strategy-based, not hardcoded into window classes.
 
 ## Animation Rules
-- Preferred first choice: `Rive` if cat asset style fits.
-- Acceptable alternatives: sprite sheet, APNG, transparent video, native image sequence.
-- Animation tech must be isolated behind `AnimationHost`.
-- Do not leak animation vendor SDK through feature/domain logic.
+- Primary overlay media format is bundled `GIF`.
+- GIF assets should live in app-managed asset folders with metadata sufficient for user-facing labels and selection.
+- GIF rendering tech must stay isolated behind `AnimationHost` or a renamed equivalent abstraction; Flutter app logic must not know the rendering vendor.
+- The chosen GIF should be resolved from persisted settings, not hardcoded in native overlay classes.
+- Keep room for later expansion to non-GIF formats without rewriting app logic.
 
 ## Persistence
 - Store settings locally.
 - Acceptable options: `shared_preferences`, `Hive`.
 - Keep persistence behind repository interfaces.
+- Persist the selected overlay media id and active theme id alongside other settings.
 
 ## Startup / Distribution
 - Support launch at login.
-- If distributing outside App Store, consider `Sparkle` later for updates.
+- If distributing outside App Store, use a real update path such as `Sparkle` or an equivalent release-feed solution so users can discover app updates that add new GIF content.
 - Update system is not part of overlay core architecture.
+
+## App Shell UX Rules
+- The settings experience should use transparent or translucent surfaces where macOS allows it without harming readability.
+- Add a small always-available macOS shell entrypoint above or alongside the app bar/title area that opens settings quickly.
+- The quick-open nudge should be app-shell behavior, not native overlay-window behavior.
+
+## Theme System Rules
+- Centralize app theming behind a small set of theme-definition files and reusable tokens.
+- Widget code should consume semantic theme tokens/components rather than hardcoded colors, radii, or typography values.
+- A broad visual restyle should require changing no more than `3 files` in the normal case:
+  - theme tokens/spec
+  - theme mapping/composition
+  - optional asset/font registration
+- Avoid scattering comic styling choices across screens.
 
 ## Suggested Repo Layout
 ```text
@@ -349,6 +380,9 @@ macos/
 - `2026-04-28`: Simplified from a heavier layered repo plan to a lighter feature-first structure with shorter class names.
 - `2026-04-29`: Moved markdown docs under `docs/` and kept repo layout aligned with that change.
 - `2026-04-29`: Recreated the Flutter project from scratch after macOS desktop support became available locally.
+- `2026-05-08`: Product direction changed from cat-specific animation to user-selectable bundled GIF overlays with update-driven content expansion.
+- `2026-05-08`: App shell should move toward transparent settings surfaces, a comic visual theme, and a top-chrome macOS nudge that opens settings quickly.
+- `2026-05-08`: Distribution planning now includes update messaging or auto-update support so users can receive newly shipped GIF content.
 
 ## Source References
 - Design pattern catalog: https://refactoring.guru/design-patterns/catalog
