@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'package:stopgrinding/core/constants/overlay_videos.dart';
 import 'package:stopgrinding/core/logging/app_logger.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_controller.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_flow_state.dart';
@@ -49,7 +50,7 @@ class OverlayService extends ChangeNotifier {
       AppLogger.info('OverlayService', 'Initializing overlay service.');
       final OverlaySettings settings = await _settingsRepository.load();
       await _controller.initialize();
-      final List<OverlayCatalogItem> catalog = await _loadCatalog();
+      final List<OverlayCatalogItem> catalog = _loadCatalog();
       AppLogger.info(
         'OverlayService',
         'Loaded overlay catalog with ${catalog.length} entries.',
@@ -221,24 +222,12 @@ class OverlayService extends ChangeNotifier {
     );
   }
 
-  Future<List<OverlayCatalogItem>> _loadCatalog() async {
-    try {
-      final List<OverlayCatalogItem> catalog = await _controller
-          .getOverlayCatalog();
-      if (catalog.isNotEmpty) {
-        AppLogger.debug(
-          'OverlayService',
-          'Using native overlay catalog with ${catalog.length} entries.',
-        );
-        return catalog;
-      }
-    } catch (_) {}
-
-    AppLogger.warning(
+  List<OverlayCatalogItem> _loadCatalog() {
+    AppLogger.debug(
       'OverlayService',
-      'Overlay catalog was empty or unavailable.',
+      'Using shared Dart overlay video list with ${kOverlayVideos.length} entries.',
     );
-    return const <OverlayCatalogItem>[];
+    return kOverlayVideos;
   }
 
   void _handleEvent(OverlayEvent event) {

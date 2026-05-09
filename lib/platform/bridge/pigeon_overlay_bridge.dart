@@ -63,17 +63,6 @@ class PigeonOverlayBridge implements OverlayBridge {
   }
 
   @override
-  Future<List<OverlayCatalogItem>> getOverlayCatalog() async {
-    final List<OverlayCatalogItemDto> catalog = await _hostApi
-        .getOverlayCatalog();
-    AppLogger.info(
-      'PigeonOverlayBridge',
-      'Received overlay catalog from native bridge with ${catalog.length} entries.',
-    );
-    return catalog.map(_mapCatalogItem).toList(growable: false);
-  }
-
-  @override
   Future<void> refreshDisplays() => _hostApi.refreshDisplays();
 
   @override
@@ -201,14 +190,6 @@ DisplayTarget _mapDisplay(DisplayTargetDto display) {
     id: display.id,
     name: display.name,
     isPrimary: display.isPrimary,
-  );
-}
-
-OverlayCatalogItem _mapCatalogItem(OverlayCatalogItemDto item) {
-  return OverlayCatalogItem(
-    id: item.id,
-    title: item.title,
-    assetPath: item.assetPath,
   );
 }
 

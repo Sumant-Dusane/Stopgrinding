@@ -633,15 +633,15 @@ Phase Complete:
 
 Phase Complete:
 - phase: Phase 11: Media Catalog And Contract Refresh
-- completed artifacts: added a typed `OverlayCatalogItem` model and `selectedOverlayId` selection flow across Dart persistence, UI, Pigeon, and Swift; moved bundled media entries into `assets/overlays/catalog.json` as a one-stop manifest for add/remove operations; implemented `getOverlayCatalog()` from the shared manifest; updated settings UI with a media dropdown; changed runtime rendering so native macOS loads the selected Flutter `assetPath` directly from bundled `assets/` and infers image/video playback from the file extension instead of relying on a separately persisted format enum.
+- completed artifacts: added a typed `OverlayCatalogItem` model and `selectedOverlayId` selection flow across Dart persistence, UI, Pigeon, and Swift; introduced a centralized shipped-media source of truth for add/remove operations; updated settings UI with a media dropdown; changed runtime rendering so native macOS loads the selected Flutter `assetPath` directly from bundled `assets/` and infers image/video playback from the file extension instead of relying on a separately persisted format enum.
 - verification: `dart run pigeon --input pigeons/overlay_api.dart --dart_out lib/platform/bridge/overlay_api.g.dart --swift_out macos/Runner/Overlay/overlay_api.g.swift`; `flutter test`; `flutter analyze`; `flutter build macos`
 - blockers: no real media assets were added in this phase, so runtime playback still needs manual validation once bundled files exist
-- decision changes: bundled overlay media now uses Flutter `assets/` as the packaging root, `assets/overlays/catalog.json` as the one-stop selection manifest, and the selected `assetPath` as the runtime source of truth; the newer plan narrows the long-term macOS product path to native-supported video assets rather than mixed image/video support
+- decision changes: bundled overlay media now uses Flutter `assets/` as the packaging root and the selected `assetPath` as the runtime source of truth; the newer plan narrows the long-term macOS product path to native-supported video assets rather than mixed image/video support
 - next phase entrypoint: replace the mixed HTML/WebKit media renderer with a native macOS media pipeline and tighten supported product formats around media that AppKit and AVFoundation handle cleanly
 
 ## Phase 12: Native macOS Media Pipeline
 ### Goal
-Replace the current mixed HTML/WebKit media rendering path with native macOS media playback and lock the shipped media formats to ones that macOS supports well.
+Replace the current mixed HTML/WebKit media rendering path with native macOS video playback and lock the shipped media formats to ones that macOS supports well.
 
 ### Scope
 - Remove WebKit/HTML as the primary overlay media renderer.
@@ -656,7 +656,7 @@ Replace the current mixed HTML/WebKit media rendering path with native macOS med
 - Update catalog/docs so product guidance no longer presents `webm` or image formats as primary macOS overlay formats.
 
 ### Deliverables
-- Native macOS renderer no longer depends on `WKWebView` for the main supported media path.
+- Native macOS renderer no longer depends on `WKWebView` for the main supported video path.
 - Full-screen media fitting behavior is implemented with native views/layers.
 - Catalog and docs clearly describe that shipped overlay media is video-only on macOS.
 

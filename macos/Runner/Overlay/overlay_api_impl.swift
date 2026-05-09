@@ -2,79 +2,6 @@ import Cocoa
 import Foundation
 import FlutterMacOS
 
-enum OverlayCatalogProvider {
-  static let catalogAssetPath = "assets/overlays/catalog.json"
-
-  static func loadCatalog() -> [OverlayCatalogItemDto] {
-    guard
-      let url = AssetLocator.url(forFlutterAsset: catalogAssetPath),
-      let data = try? Data(contentsOf: url),
-      let rawEntries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
-    else {
-      AppLogger.error("OverlayCatalogProvider", "Failed to load media catalog at \(catalogAssetPath).")
-      return []
-    }
-
-    let catalog = rawEntries.compactMap(mapEntry)
-    AppLogger.info("OverlayCatalogProvider", "Loaded media catalog with \(catalog.count) entries.")
-    return catalog
-  }
-
-  static func item(for settings: OverlaySettingsDto) -> OverlayCatalogItemDto {
-    let catalog = loadCatalog()
-    if let item = catalog.first(where: { $0.id == settings.selectedOverlayId }) {
-      return item
-    }
-
-    if let item = catalog.first(where: { $0.assetPath == settings.selectedOverlayAssetPath }) {
-      return item
-    }
-
-    if !settings.selectedOverlayAssetPath.isEmpty {
-      AppLogger.warning(
-        "OverlayCatalogProvider",
-        "Requested media path \(settings.selectedOverlayAssetPath) is not present in catalog. Rendering directly from the selected Flutter asset path."
-      )
-      return OverlayCatalogItemDto(
-        id: settings.selectedOverlayId.isEmpty ? "selected-media" : settings.selectedOverlayId,
-        title: fallbackTitle(for: settings.selectedOverlayAssetPath),
-        assetPath: settings.selectedOverlayAssetPath
-      )
-    }
-
-    AppLogger.warning(
-      "OverlayCatalogProvider",
-      "Requested unknown media id \(settings.selectedOverlayId). Falling back to first catalog item."
-    )
-    return catalog.first ?? OverlayCatalogItemDto(
-      id: "missing-media",
-      title: "Missing Media",
-      assetPath: ""
-    )
-  }
-
-  private static func mapEntry(_ rawEntry: [String: Any]) -> OverlayCatalogItemDto? {
-    guard
-      let id = rawEntry["id"] as? String,
-      let title = rawEntry["title"] as? String,
-      let assetPath = rawEntry["assetPath"] as? String
-    else {
-      return nil
-    }
-
-    return OverlayCatalogItemDto(
-      id: id,
-      title: title,
-      assetPath: assetPath
-    )
-  }
-
-  private static func fallbackTitle(for assetPath: String) -> String {
-    let filename = URL(fileURLWithPath: assetPath).deletingPathExtension().lastPathComponent
-    return filename.isEmpty ? "Selected Media" : filename
-  }
-}
-
 enum AssetLocator {
   static func url(forFlutterAsset assetPath: String) -> URL? {
     if let frameworksURL = Bundle.main.privateFrameworksURL {
@@ -213,17 +140,25 @@ final class OverlayApiImpl: OverlayHostApi {
     overlayFacade.updateSettings(settings)
   }
 
-  func getOverlayCatalog() throws -> [OverlayCatalogItemDto] {
-    AppLogger.debug("OverlayApiImpl", "Fetching overlay catalog for Flutter.")
-    return OverlayCatalogProvider.loadCatalog()
-  }
-
   func refreshDisplays() throws {
     AppLogger.debug("OverlayApiImpl", "Refreshing displays.")
     let displays = try overlayFacade.refreshDisplays(
       rebuildVisibleWindows: activeSession != nil
     )
     events.publishDisplayTopologyChanged(displays: displays.map(Self.mapDisplay))
+  }
+
+  static func selectedOverlayItem(for settings: OverlaySettingsDto) -> OverlayMediaItem {
+    let fallbackTitle = URL(fileURLWithPath: settings.selectedOverlayAssetPath)
+      .deletingPathExtension()
+      .lastPathComponent
+    let title = fallbackTitle.isEmpty ? "Selected Video" : fallbackTitle
+
+    return OverlayMediaItem(
+      id: settings.selectedOverlayId.isEmpty ? "selected-video" : settings.selectedOverlayId,
+      title: title,
+      assetPath: settings.selectedOverlayAssetPath
+    )
   }
 
   func getOverlayStatus() throws -> OverlayStatusDto {
@@ -285,4 +220,10 @@ final class OverlayApiImpl: OverlayHostApi {
   private static func nowMillis() -> Int64 {
     Int64(Date().timeIntervalSince1970 * 1000)
   }
+}
+
+struct OverlayMediaItem {
+  let id: String
+  let title: String
+  let assetPath: String
 }

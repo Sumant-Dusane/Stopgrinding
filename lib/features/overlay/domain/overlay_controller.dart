@@ -13,8 +13,6 @@ abstract class OverlayController {
 
   Future<void> updateSettings(OverlaySettings settings);
 
-  Future<List<OverlayCatalogItem>> getOverlayCatalog();
-
   Future<void> refreshDisplays();
 
   Future<OverlayStatus> getStatus();

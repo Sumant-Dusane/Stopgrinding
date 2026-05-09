@@ -260,7 +260,7 @@ class _DebugPanel extends StatelessWidget {
               'Current cadence: ${settings.duration.value.inMinutes}m every ${settings.schedule.interval.inMinutes}m',
             ),
             const SizedBox(height: 8),
-            Text('Selected media: ${selectedItem?.title ?? 'loading catalog'}'),
+            Text('Selected video: ${selectedItem?.title ?? 'loading catalog'}'),
             const SizedBox(height: 8),
             Text(
               'Last overlay result: ${_resultSummary(result) ?? 'No completed session yet'}',
@@ -425,12 +425,12 @@ class _SettingsPanel extends StatelessWidget {
             Text('Settings', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
             if (catalog.isEmpty)
-              const Text('Overlay media catalog is loading...')
+              const Text('Overlay video catalog is loading...')
             else
               DropdownButtonFormField<String>(
                 key: ValueKey('overlay-${settings.selectedOverlayId}'),
                 value: settings.selectedCatalogItem(catalog).id,
-                decoration: const InputDecoration(labelText: 'Break media'),
+                decoration: const InputDecoration(labelText: 'Break video'),
                 items: catalog
                     .map(
                       (item) => DropdownMenuItem<String>(

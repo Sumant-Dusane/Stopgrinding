@@ -7,7 +7,7 @@ protocol AnimationHost {
 
   func attach(to containerView: NSView)
   func updateLayout(in bounds: NSRect)
-  func updateOverlayMedia(_ item: OverlayCatalogItemDto)
+  func updateOverlayMedia(_ item: OverlayMediaItem)
   func play(duration: TimeInterval)
   func stop()
 }
@@ -35,7 +35,7 @@ final class NativeOverlayMediaHost: AnimationHost {
     mediaView.frame = bounds
   }
 
-  func updateOverlayMedia(_ item: OverlayCatalogItemDto) {
+  func updateOverlayMedia(_ item: OverlayMediaItem) {
     mediaView.updateOverlayMedia(item)
   }
 
@@ -62,7 +62,7 @@ final class NativeOverlayMediaHost: AnimationHost {
 
 private final class OverlayMediaView: NSView {
   override init(frame frameRect: NSRect) {
-    placeholderLabel = NSTextField(labelWithString: "VIDEO")
+    placeholderLabel = NSTextField(labelWithString: "MISSING VIDEO")
     super.init(frame: frameRect)
     configure()
   }
@@ -81,7 +81,7 @@ private final class OverlayMediaView: NSView {
   private var queuePlayer: AVQueuePlayer?
   private var playerLooper: AVPlayerLooper?
 
-  func updateOverlayMedia(_ item: OverlayCatalogItemDto) {
+  func updateOverlayMedia(_ item: OverlayMediaItem) {
     AppLogger.info(
       "OverlayMediaView",
       "Rendering video media \(item.id) from \(item.assetPath)."
@@ -157,7 +157,7 @@ private final class OverlayMediaView: NSView {
     queuePlayer = nil
     playerLooper = nil
     playerLayer?.player = nil
-    placeholderLabel.stringValue = title.uppercased()
+    placeholderLabel.stringValue = "MISSING VIDEO\n\(title.uppercased())"
     placeholderLabel.isHidden = false
   }
 
@@ -189,7 +189,7 @@ private final class OverlayMediaView: NSView {
   }
 }
 
-private enum VideoAssetFormat {
+enum VideoAssetFormat {
   static func isSupported(assetPath: String) -> Bool {
     switch URL(fileURLWithPath: assetPath).pathExtension.lowercased() {
     case "mov", "mp4", "m4v":

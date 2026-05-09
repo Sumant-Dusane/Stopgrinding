@@ -175,7 +175,6 @@ Recommended Pigeon APIs:
 - `showOverlay(OverlayRequestDto request)`
 - `hideOverlay(HideOverlayRequestDto request)`
 - `updateSettings(OverlaySettingsDto settings)`
-- `getOverlayCatalog()`
 - `refreshDisplays()`
 - `getOverlayStatus()`
 
@@ -203,8 +202,8 @@ Use value objects and enums. Avoid flat bags of booleans.
 
 ### Media Catalog Rules
 - Bundle shipped overlay media under Flutter `assets/`.
-- Keep a single manifest at `assets/overlays/catalog.json`.
-- Each catalog entry should declare:
+- Keep a single shared Dart source of truth for shipped overlay videos in `lib/core/constants/overlay_videos.dart`.
+- Each video entry should declare:
   - `id`
   - `title`
   - `assetPath`
@@ -303,13 +302,12 @@ Must use AppKit.
 - Dismiss policy should be strategy-based, not hardcoded into window classes.
 
 ## Animation Rules
-- Primary bundled overlay media formats are `GIF` and `WebM`.
-- Media assets should live in app-managed asset folders with metadata sufficient for user-facing labels, format, and selection.
+- Primary bundled overlay media formats are macOS-native video files such as `MOV`, `MP4`, and `M4V`.
+- Video assets should live in app-managed asset folders with metadata sufficient for user-facing labels and selection.
 - Media rendering tech must stay isolated behind `AnimationHost` or a renamed equivalent abstraction; Flutter app logic must not know the rendering vendor.
 - The chosen media item should be resolved from persisted settings, not hardcoded in native overlay classes.
-- The media catalog model must stay format-agnostic enough to support `GIF`, `WebM`, and later additions without rewriting app logic.
 - The default add/remove workflow for shipped media should be:
-  - edit `assets/overlays/catalog.json`
+  - edit `lib/core/constants/overlay_videos.dart`
   - add or remove the referenced media file
 
 ## Persistence
@@ -405,7 +403,7 @@ macos/
 - `2026-05-08`: App shell should move toward transparent settings surfaces, a comic visual theme, and a top-chrome macOS nudge that opens settings quickly.
 - `2026-05-08`: Distribution planning now includes update messaging or auto-update support so users can receive newly shipped overlay media content.
 - `2026-05-09`: Bundled overlay media support expanded beyond GIF to include WebM as a first-class product format.
-- `2026-05-09`: Bundled overlay catalog entries now come from `assets/overlays/catalog.json` so add/remove changes are centralized.
+- `2026-05-09`: Bundled overlay video entries are now maintained from a shared Dart source so add/remove changes are centralized in app code.
 
 ## Source References
 - Design pattern catalog: https://refactoring.guru/design-patterns/catalog

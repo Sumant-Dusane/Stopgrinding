@@ -50,18 +50,6 @@ class OverlaySettingsDto {
   final String selectedOverlayAssetPath;
 }
 
-class OverlayCatalogItemDto {
-  OverlayCatalogItemDto({
-    required this.id,
-    required this.title,
-    required this.assetPath,
-  });
-
-  final String id;
-  final String title;
-  final String assetPath;
-}
-
 class OverlayRequestDto {
   OverlayRequestDto({
     required this.requestId,
@@ -155,8 +143,6 @@ abstract class OverlayHostApi {
   void hideOverlay(HideOverlayRequestDto request);
 
   void updateSettings(OverlaySettingsDto settings);
-
-  List<OverlayCatalogItemDto> getOverlayCatalog();
 
   void refreshDisplays();
 

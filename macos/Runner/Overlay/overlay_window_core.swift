@@ -452,7 +452,7 @@ final class OverlayWindowController {
     window.orderFrontRegardless()
 
     overlayView.update(
-      selectedOverlay: OverlayCatalogProvider.item(for: settings),
+      selectedOverlay: OverlayApiImpl.selectedOverlayItem(for: settings),
       dismissTarget: dismissTarget,
       allowEarlyDismiss: settings.allowEarlyDismiss,
       blocksInteraction: settings.interactionMode == .blocking
@@ -544,7 +544,7 @@ final class OverlayVisualView: NSView {
   private var onDismissGesture: (() -> Void)?
 
   func update(
-    selectedOverlay: OverlayCatalogItemDto,
+    selectedOverlay: OverlayMediaItem,
     dismissTarget: DismissGestureTarget,
     allowEarlyDismiss: Bool,
     blocksInteraction: Bool

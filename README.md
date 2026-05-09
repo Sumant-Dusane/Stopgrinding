@@ -35,31 +35,30 @@ flutter build macos
 
 ## Media Asset Flow
 
-Bundled overlay media is loaded from Flutter `assets/`, with the selected
-catalog entry's `assetPath` sent across the bridge and rendered by the native
-macOS overlay pipeline.
-The catalog remains the one-stop manifest for add/remove operations and
-settings labels.
+Bundled overlay videos are loaded from Flutter `assets/`, with the selected
+shared Dart option's `assetPath` sent across the bridge and rendered by the
+native macOS overlay pipeline.
+The shared Dart video list remains the source of truth for settings labels and
+selection options.
 
 The default convention is:
 
 ```text
 assets/
   overlays/
-    catalog.json
     <overlay-id>/
       animation.<ext>
 ```
 
-- `assets/overlays/catalog.json` is the one-stop catalog manifest for adding or removing shipped media entries.
 - `<overlay-id>` must match the catalog id used in Flutter settings.
 - `<ext>` should be a macOS-native-friendly video extension.
-- Each manifest entry declares:
+- The shared video option list lives in [overlay_videos.dart](/Users/admin/Desktop/Personal/stopgrinding/lib/core/constants/overlay_videos.dart).
+- Each Dart entry declares:
   - `id`
   - `title`
   - `assetPath`
 - Adding or removing an overlay should usually mean:
-  - update `assets/overlays/catalog.json`
+  - update `lib/core/constants/overlay_videos.dart`
   - add or remove the referenced media file
 - Flutter now bundles the full `assets/` tree, so manifest entries can point to any shipped asset path under that root.
 - Preferred macOS media formats are `mov`, `mp4`, and `m4v`.
