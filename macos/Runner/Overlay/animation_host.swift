@@ -1,3 +1,4 @@
+import AVFoundation
 import AppKit
 import Foundation
 
@@ -6,35 +7,36 @@ protocol AnimationHost {
 
   func attach(to containerView: NSView)
   func updateLayout(in bounds: NSRect)
+  func updateOverlayMedia(_ item: OverlayCatalogItemDto)
   func play(duration: TimeInterval)
   func stop()
 }
 
-final class NativeCatAnimationHost: AnimationHost {
+final class NativeOverlayMediaHost: AnimationHost {
   init() {
-    catView = CatSpriteView(frame: NSRect(x: 0, y: 0, width: 104, height: 92))
+    mediaView = OverlayMediaView(frame: .zero)
   }
 
   var gestureTargetView: NSView {
-    catView
+    mediaView
   }
 
-  private let catView: CatSpriteView
+  private let mediaView: OverlayMediaView
   private weak var containerView: NSView?
-  private var currentBounds: NSRect = .zero
-  private var currentPhase: AnimationPhase = .hidden
-  private var pendingExitWorkItem: DispatchWorkItem?
 
   func attach(to containerView: NSView) {
     self.containerView = containerView
-    catView.isHidden = true
-    containerView.addSubview(catView)
+    mediaView.isHidden = true
+    containerView.addSubview(mediaView)
     updateLayout(in: containerView.bounds)
   }
 
   func updateLayout(in bounds: NSRect) {
-    currentBounds = bounds
-    catView.frame = frame(for: currentPhase, in: bounds)
+    mediaView.frame = bounds
+  }
+
+  func updateOverlayMedia(_ item: OverlayCatalogItemDto) {
+    mediaView.updateOverlayMedia(item)
   }
 
   func play(duration: TimeInterval) {
@@ -42,107 +44,25 @@ final class NativeCatAnimationHost: AnimationHost {
       return
     }
 
-    stop()
-
-    let totalDuration = max(duration, 1.2)
-    let entranceDuration = min(max(totalDuration * 0.22, 0.35), 1.1)
-    let exitDuration = min(max(totalDuration * 0.22, 0.35), 1.1)
-    let idleDuration = max(totalDuration - entranceDuration - exitDuration, 0.25)
-
-    currentPhase = .entering
-    catView.alphaValue = 1
-    catView.isHidden = false
-    catView.frame = frame(for: .entering, in: currentBounds)
-    catView.setFacingRight(true)
-    catView.startIdleAccent()
-
-    animate(
-      to: frame(for: .idle, in: currentBounds),
-      duration: entranceDuration
-    ) { [weak self] in
-      guard let self else {
-        return
-      }
-
-      self.currentPhase = .idle
-      self.scheduleExit(after: idleDuration, duration: exitDuration)
-    }
+    AppLogger.debug(
+      "NativeOverlayMediaHost",
+      "Starting native video overlay playback for up to \(duration)s."
+    )
+    mediaView.alphaValue = 1
+    mediaView.isHidden = false
+    mediaView.startPlayback()
   }
 
   func stop() {
-    pendingExitWorkItem?.cancel()
-    pendingExitWorkItem = nil
-    currentPhase = .hidden
-    catView.layer?.removeAllAnimations()
-    catView.stopIdleAccent()
-    catView.isHidden = true
-  }
-
-  private func scheduleExit(after delay: TimeInterval, duration: TimeInterval) {
-    let workItem = DispatchWorkItem { [weak self] in
-      guard let self else {
-        return
-      }
-
-      self.currentPhase = .exiting
-      self.catView.setFacingRight(false)
-      self.animate(
-        to: self.frame(for: .exiting, in: self.currentBounds),
-        duration: duration
-      ) { [weak self] in
-        guard let self else {
-          return
-        }
-
-        self.currentPhase = .hidden
-        self.catView.stopIdleAccent()
-        self.catView.isHidden = true
-      }
-    }
-
-    pendingExitWorkItem = workItem
-    DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
-  }
-
-  private func animate(
-    to frame: NSRect,
-    duration: TimeInterval,
-    completion: @escaping () -> Void
-  ) {
-    NSAnimationContext.runAnimationGroup({ context in
-      context.duration = duration
-      context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-      catView.animator().frame = frame
-    }, completionHandler: completion)
-  }
-
-  private func frame(for phase: AnimationPhase, in bounds: NSRect) -> NSRect {
-    let size = catView.frame.size
-    let baselineY = bounds.midY - 10
-    let centerY = baselineY - (size.height / 2)
-
-    switch phase {
-    case .hidden, .entering:
-      return NSRect(x: bounds.minX - size.width - 36, y: centerY, width: size.width, height: size.height)
-    case .idle:
-      return NSRect(x: bounds.midX - (size.width / 2), y: centerY, width: size.width, height: size.height)
-    case .exiting:
-      return NSRect(x: bounds.maxX + 36, y: centerY, width: size.width, height: size.height)
-    }
+    AppLogger.debug("NativeOverlayMediaHost", "Stopping native video overlay playback.")
+    mediaView.stopPlayback()
+    mediaView.isHidden = true
   }
 }
 
-private enum AnimationPhase {
-  case hidden
-  case entering
-  case idle
-  case exiting
-}
-
-private final class CatSpriteView: NSView {
+private final class OverlayMediaView: NSView {
   override init(frame frameRect: NSRect) {
-    self.catLabel = NSTextField(labelWithString: "🐈")
-    self.shadowLabel = NSTextField(labelWithString: "")
+    placeholderLabel = NSTextField(labelWithString: "VIDEO")
     super.init(frame: frameRect)
     configure()
   }
@@ -151,58 +71,131 @@ private final class CatSpriteView: NSView {
     return nil
   }
 
-  private let catLabel: NSTextField
-  private let shadowLabel: NSTextField
-
-  func setFacingRight(_ facingRight: Bool) {
-    let direction: CGFloat = facingRight ? 1 : -1
-    layer?.setAffineTransform(CGAffineTransform(scaleX: direction, y: 1))
+  override func layout() {
+    super.layout()
+    playerLayer?.frame = bounds
   }
 
-  func startIdleAccent() {
-    guard let layer else {
+  private let placeholderLabel: NSTextField
+  private var playerLayer: AVPlayerLayer?
+  private var queuePlayer: AVQueuePlayer?
+  private var playerLooper: AVPlayerLooper?
+
+  func updateOverlayMedia(_ item: OverlayCatalogItemDto) {
+    AppLogger.info(
+      "OverlayMediaView",
+      "Rendering video media \(item.id) from \(item.assetPath)."
+    )
+
+    guard VideoAssetFormat.isSupported(assetPath: item.assetPath) else {
+      AppLogger.warning(
+        "OverlayMediaView",
+        "Unsupported video extension for \(item.assetPath)."
+      )
+      showPlaceholder(item.title)
       return
     }
 
-    let bobAnimation = CABasicAnimation(keyPath: "transform.translation.y")
-    bobAnimation.fromValue = -3
-    bobAnimation.toValue = 3
-    bobAnimation.duration = 0.45
-    bobAnimation.autoreverses = true
-    bobAnimation.repeatCount = .infinity
-    bobAnimation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-    layer.add(bobAnimation, forKey: "idle-bob")
+    guard let assetURL = AssetLocator.url(forFlutterAsset: item.assetPath) else {
+      AppLogger.error(
+        "OverlayMediaView",
+        "Video asset could not be resolved for \(item.id) at \(item.assetPath)."
+      )
+      showPlaceholder(item.title)
+      return
+    }
+
+    configurePlayer(with: assetURL)
+    placeholderLabel.isHidden = true
+    AppLogger.debug(
+      "OverlayMediaView",
+      "Configured native AVFoundation playback from \(assetURL.path)."
+    )
   }
 
-  func stopIdleAccent() {
-    layer?.removeAnimation(forKey: "idle-bob")
+  func startPlayback() {
+    guard let queuePlayer else {
+      AppLogger.warning(
+        "OverlayMediaView",
+        "Playback was requested without a configured native video player."
+      )
+      return
+    }
+
+    queuePlayer.seek(to: .zero)
+    queuePlayer.play()
+  }
+
+  func stopPlayback() {
+    queuePlayer?.pause()
+    queuePlayer?.seek(to: .zero)
+  }
+
+  private func configurePlayer(with assetURL: URL) {
+    let playerItem = AVPlayerItem(url: assetURL)
+    let queuePlayer = AVQueuePlayer()
+    queuePlayer.isMuted = true
+    queuePlayer.actionAtItemEnd = .none
+    let looper = AVPlayerLooper(player: queuePlayer, templateItem: playerItem)
+
+    if playerLayer == nil {
+      let layer = AVPlayerLayer()
+      layer.frame = bounds
+      layer.videoGravity = .resizeAspectFill
+      self.layer?.addSublayer(layer)
+      playerLayer = layer
+    }
+
+    self.queuePlayer?.pause()
+    self.queuePlayer = queuePlayer
+    playerLooper = looper
+    playerLayer?.player = queuePlayer
+  }
+
+  private func showPlaceholder(_ title: String) {
+    queuePlayer?.pause()
+    queuePlayer = nil
+    playerLooper = nil
+    playerLayer?.player = nil
+    placeholderLabel.stringValue = title.uppercased()
+    placeholderLabel.isHidden = false
   }
 
   private func configure() {
     wantsLayer = true
     layer?.backgroundColor = NSColor.clear.cgColor
 
-    shadowLabel.translatesAutoresizingMaskIntoConstraints = false
-    shadowLabel.stringValue = " "
-    shadowLabel.wantsLayer = true
-    shadowLabel.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.18).cgColor
-    shadowLabel.layer?.cornerRadius = 16
+    placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
+    placeholderLabel.font = .systemFont(ofSize: 22, weight: .black)
+    placeholderLabel.textColor = .white
+    placeholderLabel.alignment = .center
+    placeholderLabel.maximumNumberOfLines = 2
+    placeholderLabel.lineBreakMode = .byWordWrapping
 
-    catLabel.translatesAutoresizingMaskIntoConstraints = false
-    catLabel.font = .systemFont(ofSize: 64)
-    catLabel.alignment = .center
-
-    addSubview(shadowLabel)
-    addSubview(catLabel)
+    addSubview(placeholderLabel)
 
     NSLayoutConstraint.activate([
-      shadowLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-      shadowLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
-      shadowLabel.widthAnchor.constraint(equalToConstant: 58),
-      shadowLabel.heightAnchor.constraint(equalToConstant: 14),
-
-      catLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-      catLabel.centerYAnchor.constraint(equalTo: centerYAnchor, constant: -2),
+      placeholderLabel.leadingAnchor.constraint(
+        greaterThanOrEqualTo: leadingAnchor,
+        constant: 24
+      ),
+      placeholderLabel.trailingAnchor.constraint(
+        lessThanOrEqualTo: trailingAnchor,
+        constant: -24
+      ),
+      placeholderLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
+      placeholderLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
     ])
+  }
+}
+
+private enum VideoAssetFormat {
+  static func isSupported(assetPath: String) -> Bool {
+    switch URL(fileURLWithPath: assetPath).pathExtension.lowercased() {
+    case "mov", "mp4", "m4v":
+      return true
+    default:
+      return false
+    }
   }
 }

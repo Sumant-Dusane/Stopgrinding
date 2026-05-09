@@ -11,7 +11,7 @@ AGENT SHOULD STRICTLY FOLLOW THIS MD FILE. If any planned code, architecture, na
 - Desktop app for macOS first, Windows second.
 - Every `1h` by default, show an overlay above user apps.
 - Overlay duration: `2m` by default.
-- Overlay content: user-selectable GIF overlay chosen from bundled asset folders.
+- Overlay content: user-selectable bundled overlay media chosen from app-managed asset folders.
 - Main app shell: `Flutter`.
 - Overlay engine: native per platform.
 - Settings surface should feel light and transparent rather than panel-heavy.
@@ -21,6 +21,7 @@ AGENT SHOULD STRICTLY FOLLOW THIS MD FILE. If any planned code, architecture, na
 ## Locked Decisions
 - Main UI tech: `Flutter`.
 - macOS overlay tech: `Swift + AppKit`.
+- macOS media playback should prefer native Apple media/view APIs over HTML/WebKit rendering.
 - Windows later: native overlay engine behind the same Dart contract.
 - Native communication: `Pigeon` as primary typed RPC boundary.
 - Flutter must not call raw platform channels from widgets or random services.
@@ -34,9 +35,9 @@ AGENT SHOULD STRICTLY FOLLOW THIS MD FILE. If any planned code, architecture, na
   - show above fullscreen apps or not
   - early dismiss behavior
 - User-configurable overlay content:
-  - selected GIF from app-managed asset catalog
+  - selected bundled media item from app-managed asset catalog, rendered from its Flutter `assetPath`
 - Dismiss examples allowed: double click cat, double click anywhere.
-- macOS distribution must support app-update messaging for newly shipped GIF content.
+- macOS distribution must support app-update messaging for newly shipped overlay media content.
 - Theme customization must be centralized so a major visual retheme can be done in at most `3 files` without widespread widget refactors.
 
 ## Non-Goals For V1
@@ -45,7 +46,8 @@ AGENT SHOULD STRICTLY FOLLOW THIS MD FILE. If any planned code, architecture, na
 - No screen-content inspection.
 - No complex background agent/daemon unless required by implementation constraints.
 - No direct dependency of feature/domain logic on AppKit or Win32.
-- No user-imported GIF filesystem picker in v1; GIF choices come from shipped app assets and app updates.
+- No user-imported media filesystem picker in v1; overlay choices come from shipped Flutter assets and app updates.
+- No cross-platform web renderer for overlay media in the steady-state macOS path unless a format has no practical native fallback and the decision is documented.
 
 ## Architecture
 Use a lightweight feature-first architecture plus explicit pattern mapping.
@@ -183,6 +185,9 @@ Recommended Pigeon APIs:
 - `onOverlayFailed(OverlayErrorDto error)`
 - `onDisplayTopologyChanged(DisplayTopologyDto topology)`
 
+Rule: bundled overlay media metadata should come from one manifest source when practical, rather than duplicated hardcoded catalog lists across Dart and Swift.
+Rule: runtime overlay rendering should use the selected Flutter `assetPath` as the source of truth; catalog metadata exists for selection UX and labeling, not native format lookup.
+
 ## Feature Model
 Use value objects and enums. Avoid flat bags of booleans.
 
@@ -196,13 +201,26 @@ Use value objects and enums. Avoid flat bags of booleans.
 - `OverlayCatalogItem`
 - `ThemeSpec`
 
+### Media Catalog Rules
+- Bundle shipped overlay media under Flutter `assets/`.
+- Keep a single manifest at `assets/overlays/catalog.json`.
+- Each catalog entry should declare:
+  - `id`
+  - `title`
+  - `assetPath`
+- Native rendering should load the selected Flutter `assetPath` directly from the app bundle.
+- Prefer video formats with first-class macOS-native playback support, such as `mov`, `mp4`, and `m4v`.
+- Avoid treating `webm` as a primary product format for macOS unless a documented native playback path is intentionally adopted.
+- Treat image-based overlay formats as out of scope for the simplified macOS pipeline.
+- Overlay media should fill the whole screen surface on each display.
+
 ### Enums
 - `InteractionMode { blocking, passthrough }`
 - `FullscreenMode { disabled, enabled }`
 - `MonitorScope { allDisplays }`
 - `DismissPolicyType { timedOnly, doubleClickAnywhere, doubleClickCat }`
 
-Rule: `DismissPolicyType.doubleClickCat` should be interpreted as double-clicking the active GIF subject/media hit area until a more neutral rename is introduced in a contract-safe phase.
+Rule: `DismissPolicyType.doubleClickCat` should be interpreted as double-clicking the active media subject/hit area until a more neutral rename is introduced in a contract-safe phase.
 
 ## macOS Native Subsystem
 Must use AppKit.
@@ -224,7 +242,7 @@ Must use AppKit.
 - `OverlayWindowManager`: create/manage one overlay window per display
 - `OverlayWindowController`: per-window control
 - `DisplayService`: discover and refresh screens
-- `AnimationHost`: host GIF rendering technology and overlay media lifecycle
+- `AnimationHost`: host overlay media rendering technology and overlay media lifecycle
 - `DismissHandler`: translate user gestures into dismiss actions
 
 ## Flutter/Dart Responsibilities
@@ -285,11 +303,14 @@ Must use AppKit.
 - Dismiss policy should be strategy-based, not hardcoded into window classes.
 
 ## Animation Rules
-- Primary overlay media format is bundled `GIF`.
-- GIF assets should live in app-managed asset folders with metadata sufficient for user-facing labels and selection.
-- GIF rendering tech must stay isolated behind `AnimationHost` or a renamed equivalent abstraction; Flutter app logic must not know the rendering vendor.
-- The chosen GIF should be resolved from persisted settings, not hardcoded in native overlay classes.
-- Keep room for later expansion to non-GIF formats without rewriting app logic.
+- Primary bundled overlay media formats are `GIF` and `WebM`.
+- Media assets should live in app-managed asset folders with metadata sufficient for user-facing labels, format, and selection.
+- Media rendering tech must stay isolated behind `AnimationHost` or a renamed equivalent abstraction; Flutter app logic must not know the rendering vendor.
+- The chosen media item should be resolved from persisted settings, not hardcoded in native overlay classes.
+- The media catalog model must stay format-agnostic enough to support `GIF`, `WebM`, and later additions without rewriting app logic.
+- The default add/remove workflow for shipped media should be:
+  - edit `assets/overlays/catalog.json`
+  - add or remove the referenced media file
 
 ## Persistence
 - Store settings locally.
@@ -299,7 +320,7 @@ Must use AppKit.
 
 ## Startup / Distribution
 - Support launch at login.
-- If distributing outside App Store, use a real update path such as `Sparkle` or an equivalent release-feed solution so users can discover app updates that add new GIF content.
+- If distributing outside App Store, use a real update path such as `Sparkle` or an equivalent release-feed solution so users can discover app updates that add new media content.
 - Update system is not part of overlay core architecture.
 
 ## App Shell UX Rules
@@ -380,9 +401,11 @@ macos/
 - `2026-04-28`: Simplified from a heavier layered repo plan to a lighter feature-first structure with shorter class names.
 - `2026-04-29`: Moved markdown docs under `docs/` and kept repo layout aligned with that change.
 - `2026-04-29`: Recreated the Flutter project from scratch after macOS desktop support became available locally.
-- `2026-05-08`: Product direction changed from cat-specific animation to user-selectable bundled GIF overlays with update-driven content expansion.
+- `2026-05-08`: Product direction changed from cat-specific animation to user-selectable bundled overlay media with update-driven content expansion.
 - `2026-05-08`: App shell should move toward transparent settings surfaces, a comic visual theme, and a top-chrome macOS nudge that opens settings quickly.
-- `2026-05-08`: Distribution planning now includes update messaging or auto-update support so users can receive newly shipped GIF content.
+- `2026-05-08`: Distribution planning now includes update messaging or auto-update support so users can receive newly shipped overlay media content.
+- `2026-05-09`: Bundled overlay media support expanded beyond GIF to include WebM as a first-class product format.
+- `2026-05-09`: Bundled overlay catalog entries now come from `assets/overlays/catalog.json` so add/remove changes are centralized.
 
 ## Source References
 - Design pattern catalog: https://refactoring.guru/design-patterns/catalog

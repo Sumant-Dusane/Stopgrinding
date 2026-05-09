@@ -15,6 +15,9 @@ class SharedPreferencesOverlaySettingsRepository
   static const String _fullscreenModeKey = 'overlay.fullscreen_mode';
   static const String _dismissPolicyTypeKey = 'overlay.dismiss_policy_type';
   static const String _allowEarlyDismissKey = 'overlay.allow_early_dismiss';
+  static const String _selectedOverlayIdKey = 'overlay.selected_overlay_id';
+  static const String _selectedOverlayAssetPathKey =
+      'overlay.selected_overlay_asset_path';
 
   final SharedPreferencesAsync _preferences;
 
@@ -43,6 +46,12 @@ class SharedPreferencesOverlaySettingsRepository
     final bool allowEarlyDismiss =
         await _preferences.getBool(_allowEarlyDismissKey) ??
         defaults.dismissPolicy.allowEarlyDismiss;
+    final String selectedOverlayId =
+        await _preferences.getString(_selectedOverlayIdKey) ??
+        defaults.selectedOverlayId;
+    final String selectedOverlayAssetPath =
+        await _preferences.getString(_selectedOverlayAssetPathKey) ??
+        defaults.selectedOverlayAssetPath;
 
     return OverlaySettings(
       schedule: OverlaySchedule(interval: Duration(minutes: intervalMinutes)),
@@ -56,7 +65,9 @@ class SharedPreferencesOverlaySettingsRepository
             ? false
             : allowEarlyDismiss,
       ),
-    );
+      selectedOverlayId: selectedOverlayId,
+      selectedOverlayAssetPath: selectedOverlayAssetPath,
+    ).normalized();
   }
 
   @override
@@ -85,6 +96,14 @@ class SharedPreferencesOverlaySettingsRepository
       _allowEarlyDismissKey,
       settings.dismissPolicy.allowEarlyDismiss,
     );
+    await _preferences.setString(
+      _selectedOverlayIdKey,
+      settings.selectedOverlayId,
+    );
+    await _preferences.setString(
+      _selectedOverlayAssetPathKey,
+      settings.selectedOverlayAssetPath,
+    );
   }
 }
 
@@ -100,10 +119,7 @@ InteractionMode _interactionModeFromName(
   return fallback;
 }
 
-FullscreenMode _fullscreenModeFromName(
-  String? value,
-  FullscreenMode fallback,
-) {
+FullscreenMode _fullscreenModeFromName(String? value, FullscreenMode fallback) {
   for (final FullscreenMode mode in FullscreenMode.values) {
     if (mode.name == value) {
       return mode;

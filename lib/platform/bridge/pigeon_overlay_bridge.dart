@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import 'package:stopgrinding/core/logging/app_logger.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_types.dart';
 import 'package:stopgrinding/platform/bridge/overlay_api.g.dart';
 import 'package:stopgrinding/platform/bridge/overlay_bridge.dart';
@@ -62,6 +63,17 @@ class PigeonOverlayBridge implements OverlayBridge {
   }
 
   @override
+  Future<List<OverlayCatalogItem>> getOverlayCatalog() async {
+    final List<OverlayCatalogItemDto> catalog = await _hostApi
+        .getOverlayCatalog();
+    AppLogger.info(
+      'PigeonOverlayBridge',
+      'Received overlay catalog from native bridge with ${catalog.length} entries.',
+    );
+    return catalog.map(_mapCatalogItem).toList(growable: false);
+  }
+
+  @override
   Future<void> refreshDisplays() => _hostApi.refreshDisplays();
 
   @override
@@ -112,6 +124,10 @@ class _OverlayFlutterCallbackHandler extends OverlayFlutterApi {
 
   @override
   void onOverlayFailed(OverlayErrorDto error) {
+    AppLogger.error(
+      'PigeonOverlayBridge',
+      'Native overlay failure: ${error.code}: ${error.message}',
+    );
     emitEvent(
       OverlayEvent(
         type: OverlayEventType.failed,
@@ -146,6 +162,8 @@ OverlaySettingsDto _mapSettings(OverlaySettings settings) {
     monitorScope: _mapMonitorScope(settings.monitorScope),
     dismissPolicyType: _mapDismissPolicyType(settings.dismissPolicy.type),
     allowEarlyDismiss: settings.dismissPolicy.allowEarlyDismiss,
+    selectedOverlayId: settings.selectedOverlayId,
+    selectedOverlayAssetPath: settings.selectedOverlayAssetPath,
   );
 }
 
@@ -183,6 +201,14 @@ DisplayTarget _mapDisplay(DisplayTargetDto display) {
     id: display.id,
     name: display.name,
     isPrimary: display.isPrimary,
+  );
+}
+
+OverlayCatalogItem _mapCatalogItem(OverlayCatalogItemDto item) {
+  return OverlayCatalogItem(
+    id: item.id,
+    title: item.title,
+    assetPath: item.assetPath,
   );
 }
 

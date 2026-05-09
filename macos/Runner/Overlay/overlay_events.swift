@@ -39,7 +39,7 @@ final class OverlayEvents {
 
   private static func logIfNeeded(_ result: Result<Void, PigeonError>) {
     if case let .failure(error) = result {
-      NSLog("OverlayEvents error: \(error.localizedDescription)")
+      AppLogger.error("OverlayEvents", error.localizedDescription)
     }
   }
 

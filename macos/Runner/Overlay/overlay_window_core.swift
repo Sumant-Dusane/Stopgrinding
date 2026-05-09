@@ -82,6 +82,10 @@ final class OverlayCoordinator {
 
   func showOverlay(settings: OverlaySettingsDto) throws -> [NativeDisplayTarget] {
     let displays = displayService.currentDisplays()
+    AppLogger.info(
+      "OverlayCoordinator",
+      "Attempting to show overlay on \(displays.count) displays for media id \(settings.selectedOverlayId) at asset path \(settings.selectedOverlayAssetPath)."
+    )
     guard !displays.isEmpty else {
       throw PigeonError(
         code: "no-displays",
@@ -99,6 +103,10 @@ final class OverlayCoordinator {
       fullscreenStrategy: behaviors.fullscreenStrategy,
       dismissTarget: behaviors.dismissStrategy.gestureTarget
     )
+    AppLogger.debug(
+      "OverlayCoordinator",
+      "Overlay windows configured. Active controllers: \(windowManager.activeControllers.count)."
+    )
     dismissHandler.configure(
       controllers: windowManager.activeControllers,
       dismissStrategy: behaviors.dismissStrategy
@@ -115,6 +123,10 @@ final class OverlayCoordinator {
 
   func updateSettings(_ settings: OverlaySettingsDto) {
     lastSettings = settings
+    AppLogger.info(
+      "OverlayCoordinator",
+      "Applying updated settings for media id \(settings.selectedOverlayId) at asset path \(settings.selectedOverlayAssetPath). Visible=\(isVisible)."
+    )
     guard isVisible else {
       return
     }
@@ -134,6 +146,10 @@ final class OverlayCoordinator {
 
   func refreshDisplays(rebuildVisibleWindows: Bool) throws -> [NativeDisplayTarget] {
     let displays = displayService.currentDisplays()
+    AppLogger.debug(
+      "OverlayCoordinator",
+      "Refresh displays found \(displays.count) displays. rebuildVisibleWindows=\(rebuildVisibleWindows)."
+    )
 
     if rebuildVisibleWindows, isVisible, let settings = lastSettings {
       let behaviors = behaviorFactory.makeBehaviors(for: settings)
@@ -320,6 +336,10 @@ final class OverlayWindowManager {
     fullscreenStrategy: FullscreenStrategy,
     dismissTarget: DismissGestureTarget
   ) {
+    AppLogger.info(
+      "OverlayWindowManager",
+      "Showing overlay windows for \(displays.count) displays and media id \(settings.selectedOverlayId) at asset path \(settings.selectedOverlayAssetPath)."
+    )
     let activeIds = Set(displays.map(\.id))
 
     for (displayId, controller) in windowsByDisplayId where !activeIds.contains(displayId) {
@@ -328,6 +348,10 @@ final class OverlayWindowManager {
     }
 
     for display in displays {
+      AppLogger.debug(
+        "OverlayWindowManager",
+        "Updating overlay window for display \(display.id) (\(display.name))."
+      )
       let controller = windowsByDisplayId[display.id] ?? OverlayWindowController(display: display)
       controller.update(
         display: display,
@@ -347,6 +371,10 @@ final class OverlayWindowManager {
     fullscreenStrategy: FullscreenStrategy,
     dismissTarget: DismissGestureTarget
   ) {
+    AppLogger.debug(
+      "OverlayWindowManager",
+      "Updating visible overlay for \(windowsByDisplayId.count) windows and media id \(settings.selectedOverlayId) at asset path \(settings.selectedOverlayAssetPath)."
+    )
     for controller in windowsByDisplayId.values {
       controller.update(
         display: controller.display,
@@ -359,6 +387,10 @@ final class OverlayWindowManager {
   }
 
   func hideOverlay() {
+    AppLogger.info(
+      "OverlayWindowManager",
+      "Hiding overlay windows. count=\(windowsByDisplayId.count)."
+    )
     for controller in windowsByDisplayId.values {
       controller.configureDismissTarget(.none, onDismissGesture: nil)
       controller.hide()
@@ -387,7 +419,7 @@ final class OverlayWindowController {
 
     let overlayView = OverlayVisualView(
       frame: display.screen.frame,
-      animationHost: NativeCatAnimationHost()
+      animationHost: NativeOverlayMediaHost()
     )
     window.contentView = overlayView
 
@@ -408,6 +440,10 @@ final class OverlayWindowController {
   ) {
     self.display = display
     windowDuration = TimeInterval(settings.durationMillis) / 1000
+    AppLogger.info(
+      "OverlayWindowController",
+      "Updating display \(display.id) for media id \(settings.selectedOverlayId) at asset path \(settings.selectedOverlayAssetPath). blocking=\(settings.interactionMode == .blocking)."
+    )
 
     window.setFrame(display.screen.frame, display: true)
     window.setFrameOrigin(display.screen.frame.origin)
@@ -416,10 +452,10 @@ final class OverlayWindowController {
     window.orderFrontRegardless()
 
     overlayView.update(
-      displayName: display.name,
-      blocksInteraction: settings.interactionMode == .blocking,
+      selectedOverlay: OverlayCatalogProvider.item(for: settings),
       dismissTarget: dismissTarget,
-      allowEarlyDismiss: settings.allowEarlyDismiss
+      allowEarlyDismiss: settings.allowEarlyDismiss,
+      blocksInteraction: settings.interactionMode == .blocking
     )
   }
 
@@ -434,11 +470,13 @@ final class OverlayWindowController {
   }
 
   func show() {
+    AppLogger.debug("OverlayWindowController", "Ordering overlay window front.")
     window.orderFrontRegardless()
     overlayView.playAnimation(duration: windowDuration)
   }
 
   func hide() {
+    AppLogger.debug("OverlayWindowController", "Ordering overlay window out.")
     overlayView.stopAnimation()
     window.orderOut(nil)
   }
@@ -491,9 +529,6 @@ final class OverlayWindow: NSWindow {
 
 final class OverlayVisualView: NSView {
   init(frame frameRect: NSRect, animationHost: AnimationHost) {
-    self.backdropView = NSVisualEffectView(frame: .zero)
-    self.titleLabel = NSTextField(labelWithString: "")
-    self.subtitleLabel = NSTextField(labelWithString: "")
     self.animationHost = animationHost
     super.init(frame: frameRect)
     configure()
@@ -503,30 +538,18 @@ final class OverlayVisualView: NSView {
     return nil
   }
 
-  private let backdropView: NSVisualEffectView
-  private let titleLabel: NSTextField
-  private let subtitleLabel: NSTextField
   private let animationHost: AnimationHost
   private var rootDoubleClickGestureRecognizer: NSClickGestureRecognizer?
   private var cardDoubleClickGestureRecognizer: NSClickGestureRecognizer?
   private var onDismissGesture: (() -> Void)?
 
   func update(
-    displayName: String,
-    blocksInteraction: Bool,
+    selectedOverlay: OverlayCatalogItemDto,
     dismissTarget: DismissGestureTarget,
-    allowEarlyDismiss: Bool
+    allowEarlyDismiss: Bool,
+    blocksInteraction: Bool
   ) {
-    titleLabel.stringValue = "Stop grinding"
-
-    let interactionDescription = blocksInteraction
-      ? "\(displayName) is blocked for a break."
-      : "\(displayName) is showing the break overlay."
-    let dismissDescription = dismissHint(
-      dismissTarget: dismissTarget,
-      allowEarlyDismiss: allowEarlyDismiss
-    )
-    subtitleLabel.stringValue = "\(interactionDescription) \(dismissDescription)"
+    animationHost.updateOverlayMedia(selectedOverlay)
   }
 
   func configureDismissGesture(
@@ -577,7 +600,9 @@ final class OverlayVisualView: NSView {
     }
 
     if let cardDoubleClickGestureRecognizer {
-      backdropView.removeGestureRecognizer(cardDoubleClickGestureRecognizer)
+      animationHost.gestureTargetView.removeGestureRecognizer(
+        cardDoubleClickGestureRecognizer
+      )
       self.cardDoubleClickGestureRecognizer = nil
     }
   }
@@ -592,66 +617,9 @@ final class OverlayVisualView: NSView {
     return recognizer
   }
 
-  private func dismissHint(
-    dismissTarget: DismissGestureTarget,
-    allowEarlyDismiss: Bool
-  ) -> String {
-    guard allowEarlyDismiss else {
-      return "Wait for the timer to finish."
-    }
-
-    switch dismissTarget {
-    case .none:
-      return "Wait for the timer to finish."
-    case .anywhere:
-      return "Double-click anywhere to dismiss early."
-    case .overlayCard:
-      return "Double-click the break card to dismiss early."
-    }
-  }
-
   private func configure() {
     wantsLayer = true
     layer?.backgroundColor = NSColor.clear.cgColor
-
-    backdropView.translatesAutoresizingMaskIntoConstraints = false
-    backdropView.material = .hudWindow
-    backdropView.blendingMode = .withinWindow
-    backdropView.state = .active
-    backdropView.wantsLayer = true
-    backdropView.layer?.cornerRadius = 28
-    backdropView.layer?.masksToBounds = true
-
-    titleLabel.translatesAutoresizingMaskIntoConstraints = false
-    titleLabel.font = .systemFont(ofSize: 34, weight: .semibold)
-    titleLabel.textColor = .white
-    titleLabel.alignment = .center
-
-    subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
-    subtitleLabel.font = .systemFont(ofSize: 17, weight: .medium)
-    subtitleLabel.textColor = NSColor.white.withAlphaComponent(0.82)
-    subtitleLabel.alignment = .center
-    subtitleLabel.maximumNumberOfLines = 0
-    subtitleLabel.lineBreakMode = .byWordWrapping
-
-    addSubview(backdropView)
-    addSubview(titleLabel)
-    addSubview(subtitleLabel)
     animationHost.attach(to: self)
-
-    NSLayoutConstraint.activate([
-      backdropView.centerXAnchor.constraint(equalTo: centerXAnchor),
-      backdropView.centerYAnchor.constraint(equalTo: centerYAnchor),
-      backdropView.widthAnchor.constraint(equalToConstant: 440),
-      backdropView.heightAnchor.constraint(equalToConstant: 220),
-
-      titleLabel.leadingAnchor.constraint(equalTo: backdropView.leadingAnchor, constant: 24),
-      titleLabel.trailingAnchor.constraint(equalTo: backdropView.trailingAnchor, constant: -24),
-      titleLabel.topAnchor.constraint(equalTo: backdropView.topAnchor, constant: 64),
-
-      subtitleLabel.leadingAnchor.constraint(equalTo: backdropView.leadingAnchor, constant: 24),
-      subtitleLabel.trailingAnchor.constraint(equalTo: backdropView.trailingAnchor, constant: -24),
-      subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 18),
-    ])
   }
 }

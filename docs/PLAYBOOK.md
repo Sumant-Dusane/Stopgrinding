@@ -35,7 +35,8 @@ AGENT SHOULD STRICTLY FOLLOW `docs/AGENTS.md` AND THIS FILE. If any work conflic
   - Phase 8: Settings UI And Persistence
   - Phase 9: Startup And Debugging
   - Phase 10: Polish And Release Readiness
-- Current phase: Phase 11: GIF Catalog And Contract Refresh
+  - Phase 11: GIF Catalog And Contract Refresh
+- Current phase: Phase 12: Native macOS Media Pipeline
 
 ## Phase Format
 Each phase must produce:
@@ -411,9 +412,9 @@ Stabilize the macOS product for real use before Windows work begins.
 
 ---
 
-## Phase 11: GIF Catalog And Contract Refresh
+## Phase 11: Media Catalog And Contract Refresh
 ### Goal
-Replace cat-specific overlay assumptions with a durable GIF catalog model and selection flow.
+Replace cat-specific overlay assumptions with a durable bundled-media catalog model and selection flow.
 
 ### Scope
 - update Dart domain types and Pigeon DTOs for:
@@ -421,8 +422,8 @@ Replace cat-specific overlay assumptions with a durable GIF catalog model and se
   - overlay catalog item metadata
   - optional catalog-fetch bridge call
 - remove new product/docs assumptions that depend on a single cat animation
-- define bundled asset folder conventions for GIF organization and labels
-- update settings flow design so users can choose a GIF from a dropdown or equivalent selector
+- define bundled asset folder conventions and a one-stop catalog manifest for media organization, format, and labels
+- update settings flow design so users can choose a media item from a dropdown or equivalent selector
 - preserve existing overlay lifecycle and dismiss behavior while making content source replaceable
 
 ### Deliverables
@@ -491,7 +492,7 @@ Add a lightweight macOS entrypoint that opens settings quickly without depending
 - design and implement a small macOS top-chrome nudge above or alongside the title/app bar
 - clicking the nudge should reveal or focus the settings experience
 - keep this behavior in app-shell/macOS shell integration, not in overlay windows
-- refine settings navigation around the new GIF selector and transparent layout
+- refine settings navigation around the new media selector and transparent layout
 - ensure the quick-open affordance works consistently after launch-at-login and on repeated opens
 
 ### Deliverables
@@ -514,22 +515,22 @@ Add a lightweight macOS entrypoint that opens settings quickly without depending
 
 ---
 
-## Phase 14: Update Delivery And GIF Content Expansion
+## Phase 14: Update Delivery And Media Content Expansion
 ### Goal
-Ship a real update path so users can discover and install app releases that add new GIF packs.
+Ship a real update path so users can discover and install app releases that add new media packs.
 
 ### Scope
 - choose and integrate macOS update delivery:
   - `Sparkle` preferred if compatible with distribution path
   - equivalent release-feed solution acceptable if better suited
 - add user-facing update messaging/status surface
-- document release process for shipping new GIF assets through app updates
+- document release process for shipping new media assets through app updates
 - ensure update checks do not leak into overlay-domain logic
-- connect the updater UX to the GIF catalog story so users understand why an update matters
+- connect the updater UX to the media catalog story so users understand why an update matters
 
 ### Deliverables
 - working update mechanism or clearly bounded release-feed notifier
-- docs for packaging and shipping new GIF content
+- docs for packaging and shipping new media content
 - user-visible update affordance/message
 
 ### Verification
@@ -538,7 +539,7 @@ Ship a real update path so users can discover and install app releases that add 
 - docs review for release flow completeness
 
 ### Exit Criteria
-- users have a supported path to receive newly released GIF content
+- users have a supported path to receive newly released media content
 - updater logic is kept separate from overlay scheduling/runtime logic
 
 ### Handoff Note Template
@@ -628,4 +629,49 @@ Phase Complete:
 - verification: `flutter test`; `flutter analyze`; `flutter build macos`
 - blockers: no manual repeated-session or multi-monitor validation was possible in this environment
 - decision changes: none
-- next phase entrypoint: replace cat-specific overlay assumptions with a GIF catalog model, then rebuild the settings and shell UX around transparent comic styling and update-driven content expansion
+- next phase entrypoint: replace cat-specific overlay assumptions with a bundled media catalog model, then rebuild the settings and shell UX around transparent comic styling and update-driven content expansion
+
+Phase Complete:
+- phase: Phase 11: Media Catalog And Contract Refresh
+- completed artifacts: added a typed `OverlayCatalogItem` model and `selectedOverlayId` selection flow across Dart persistence, UI, Pigeon, and Swift; moved bundled media entries into `assets/overlays/catalog.json` as a one-stop manifest for add/remove operations; implemented `getOverlayCatalog()` from the shared manifest; updated settings UI with a media dropdown; changed runtime rendering so native macOS loads the selected Flutter `assetPath` directly from bundled `assets/` and infers image/video playback from the file extension instead of relying on a separately persisted format enum.
+- verification: `dart run pigeon --input pigeons/overlay_api.dart --dart_out lib/platform/bridge/overlay_api.g.dart --swift_out macos/Runner/Overlay/overlay_api.g.swift`; `flutter test`; `flutter analyze`; `flutter build macos`
+- blockers: no real media assets were added in this phase, so runtime playback still needs manual validation once bundled files exist
+- decision changes: bundled overlay media now uses Flutter `assets/` as the packaging root, `assets/overlays/catalog.json` as the one-stop selection manifest, and the selected `assetPath` as the runtime source of truth; the newer plan narrows the long-term macOS product path to native-supported video assets rather than mixed image/video support
+- next phase entrypoint: replace the mixed HTML/WebKit media renderer with a native macOS media pipeline and tighten supported product formats around media that AppKit and AVFoundation handle cleanly
+
+## Phase 12: Native macOS Media Pipeline
+### Goal
+Replace the current mixed HTML/WebKit media rendering path with native macOS media playback and lock the shipped media formats to ones that macOS supports well.
+
+### Scope
+- Remove WebKit/HTML as the primary overlay media renderer.
+- Keep overlay windows native AppKit and render content with native macOS views/layers:
+  - `AVPlayerLayer` or `AVPlayerView` for native video assets
+- Narrow preferred bundled media formats to macOS-native-friendly formats such as:
+  - `mov`
+  - `mp4`
+  - `m4v`
+- Continue loading selected media from Flutter `assets/`.
+- Ensure the overlay media fills the full screen bounds for each display.
+- Update catalog/docs so product guidance no longer presents `webm` or image formats as primary macOS overlay formats.
+
+### Deliverables
+- Native macOS renderer no longer depends on `WKWebView` for the main supported media path.
+- Full-screen media fitting behavior is implemented with native views/layers.
+- Catalog and docs clearly describe that shipped overlay media is video-only on macOS.
+
+### Verification
+- `flutter test`
+- `flutter analyze`
+- `flutter build macos`
+- manual validation with at least one native video asset
+
+### Exit Criteria
+- Selected Flutter asset path is rendered through native macOS media APIs.
+- Overlay media occupies the full display-sized overlay surface.
+- Product docs align with native-supported video-only guidance.
+
+### Handoff Note Template
+- native renderer classes changed
+- supported media formats after the cut
+- manual runtime results and any remaining fallback gaps

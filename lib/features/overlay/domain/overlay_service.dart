@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'package:stopgrinding/core/logging/app_logger.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_controller.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_flow_state.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_types.dart';
@@ -45,14 +46,25 @@ class OverlayService extends ChangeNotifier {
 
     _isInitializing = true;
     try {
+      AppLogger.info('OverlayService', 'Initializing overlay service.');
       final OverlaySettings settings = await _settingsRepository.load();
       await _controller.initialize();
-      await _controller.updateSettings(settings);
+      final List<OverlayCatalogItem> catalog = await _loadCatalog();
+      AppLogger.info(
+        'OverlayService',
+        'Loaded overlay catalog with ${catalog.length} entries.',
+      );
+      final OverlaySettings normalizedSettings = settings.normalized(catalog);
+      if (!settings.hasSameValues(normalizedSettings)) {
+        await _settingsRepository.save(normalizedSettings);
+      }
+      await _controller.updateSettings(normalizedSettings);
       final OverlayStatus status = await _controller.getStatus();
 
       _updateState(
         _state.copyWith(
-          settings: settings,
+          settings: normalizedSettings,
+          catalog: catalog,
           displays: status.activeSession?.displayTargets ?? _state.displays,
           isInitialized: true,
         ),
@@ -68,8 +80,9 @@ class OverlayService extends ChangeNotifier {
         return;
       }
 
-      await _scheduleNext(settings.schedule);
+      await _scheduleNext(normalizedSettings.schedule);
     } catch (error) {
+      AppLogger.error('OverlayService', 'Initialization failed.', error);
       _fail(error);
     } finally {
       _isInitializing = false;
@@ -83,8 +96,13 @@ class OverlayService extends ChangeNotifier {
 
     try {
       await _schedulerService.stop();
+      AppLogger.info(
+        'OverlayService',
+        'Manual overlay trigger requested for ${_state.settings.selectedOverlayId} at ${_state.settings.selectedOverlayAssetPath}.',
+      );
       await _triggerOverlay();
     } catch (error) {
+      AppLogger.error('OverlayService', 'Manual trigger failed.', error);
       _fail(error);
     }
   }
@@ -99,26 +117,31 @@ class OverlayService extends ChangeNotifier {
     try {
       await _controller.hideOverlay(reason: reason);
     } catch (error) {
+      AppLogger.error('OverlayService', 'Dismiss request failed.', error);
       _fail(error);
     }
   }
 
   Future<void> saveSettings(OverlaySettings settings) async {
     try {
-      await _settingsRepository.save(settings);
-      await _controller.updateSettings(settings);
+      final OverlaySettings normalizedSettings = settings.normalized(
+        _state.catalog,
+      );
+      await _settingsRepository.save(normalizedSettings);
+      await _controller.updateSettings(normalizedSettings);
       _updateState(
         _state.copyWith(
-          settings: settings,
+          settings: normalizedSettings,
           lastError: null,
           lastUpdatedAt: DateTime.now(),
         ),
       );
 
       if (!_state.isOverlayActive) {
-        await _scheduleNext(settings.schedule);
+        await _scheduleNext(normalizedSettings.schedule);
       }
     } catch (error) {
+      AppLogger.error('OverlayService', 'Saving settings failed.', error);
       _fail(error);
     }
   }
@@ -145,7 +168,8 @@ class OverlayService extends ChangeNotifier {
       await _controller.refreshDisplays();
       final OverlayStatus status = await _controller.getStatus();
 
-      if (status.state == OverlayState.visible && status.activeSession != null) {
+      if (status.state == OverlayState.visible &&
+          status.activeSession != null) {
         _transitionTo(
           OverlayState.visible,
           activeSession: status.activeSession,
@@ -160,6 +184,7 @@ class OverlayService extends ChangeNotifier {
         await _scheduleNext(_state.settings.schedule);
       }
     } catch (error) {
+      AppLogger.error('OverlayService', 'Recovery failed.', error);
       _fail(error);
     }
   }
@@ -194,6 +219,26 @@ class OverlayService extends ChangeNotifier {
       activeSession: null,
       lastDismissReason: null,
     );
+  }
+
+  Future<List<OverlayCatalogItem>> _loadCatalog() async {
+    try {
+      final List<OverlayCatalogItem> catalog = await _controller
+          .getOverlayCatalog();
+      if (catalog.isNotEmpty) {
+        AppLogger.debug(
+          'OverlayService',
+          'Using native overlay catalog with ${catalog.length} entries.',
+        );
+        return catalog;
+      }
+    } catch (_) {}
+
+    AppLogger.warning(
+      'OverlayService',
+      'Overlay catalog was empty or unavailable.',
+    );
+    return const <OverlayCatalogItem>[];
   }
 
   void _handleEvent(OverlayEvent event) {

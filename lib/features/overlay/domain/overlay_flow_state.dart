@@ -4,6 +4,7 @@ class OverlayFlowState {
   const OverlayFlowState({
     required this.lifecycle,
     required this.settings,
+    this.catalog = const <OverlayCatalogItem>[],
     this.activeSession,
     this.nextTriggerAt,
     this.displays = const <DisplayTarget>[],
@@ -24,6 +25,7 @@ class OverlayFlowState {
 
   final OverlayState lifecycle;
   final OverlaySettings settings;
+  final List<OverlayCatalogItem> catalog;
   final OverlaySession? activeSession;
   final DateTime? nextTriggerAt;
   final List<DisplayTarget> displays;
@@ -39,6 +41,7 @@ class OverlayFlowState {
   OverlayFlowState copyWith({
     OverlayState? lifecycle,
     OverlaySettings? settings,
+    List<OverlayCatalogItem>? catalog,
     Object? activeSession = _sentinel,
     Object? nextTriggerAt = _sentinel,
     List<DisplayTarget>? displays,
@@ -51,6 +54,7 @@ class OverlayFlowState {
     return OverlayFlowState(
       lifecycle: lifecycle ?? this.lifecycle,
       settings: settings ?? this.settings,
+      catalog: catalog ?? this.catalog,
       activeSession: identical(activeSession, _sentinel)
           ? this.activeSession
           : activeSession as OverlaySession?,

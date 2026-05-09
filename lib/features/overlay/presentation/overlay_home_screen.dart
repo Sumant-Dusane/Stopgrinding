@@ -54,13 +54,14 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
           final LaunchAtStartupService startup = widget.launchAtStartupService;
           _syncDraftIfNeeded(state.settings);
           final OverlaySettings settings = _draftSettings ?? state.settings;
+          final List<OverlayCatalogItem> catalog = state.catalog;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _DebugPanel(state: state, startup: startup),
+                _DebugPanel(state: state, startup: startup, catalog: catalog),
                 const SizedBox(height: 24),
                 _ActionsRow(
                   state: state,
@@ -87,57 +88,78 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
                 const SizedBox(height: 24),
                 _SettingsPanel(
                   settings: settings,
+                  catalog: catalog,
                   isSaving: _isSaving,
                   onIntervalChanged: (minutes) {
                     _updateDraft(
-                      settings.copyWithSchedule(
-                        OverlaySchedule(
+                      settings.copyWith(
+                        schedule: OverlaySchedule(
                           interval: Duration(minutes: minutes),
-                          startImmediately:
-                              settings.schedule.startImmediately,
+                          startImmediately: settings.schedule.startImmediately,
                         ),
                       ),
                     );
                   },
                   onDurationChanged: (minutes) {
                     _updateDraft(
-                      settings.copyWithDuration(
-                        OverlayDuration(Duration(minutes: minutes)),
+                      settings.copyWith(
+                        duration: OverlayDuration(Duration(minutes: minutes)),
                       ),
                     );
                   },
                   onInteractionModeChanged: (value) {
                     _updateDraft(
-                      settings.copyWithInteractionMode(value).normalized(),
+                      settings
+                          .copyWith(interactionMode: value)
+                          .normalized(catalog),
                     );
                   },
                   onFullscreenModeChanged: (value) {
-                    _updateDraft(settings.copyWithFullscreenMode(value));
+                    _updateDraft(settings.copyWith(fullscreenMode: value));
+                  },
+                  onOverlayChanged: (value) {
+                    OverlayCatalogItem? selectedItem;
+                    for (final OverlayCatalogItem item in catalog) {
+                      if (item.id == value) {
+                        selectedItem = item;
+                        break;
+                      }
+                    }
+                    _updateDraft(
+                      settings.copyWith(
+                        selectedOverlayId: value,
+                        selectedOverlayAssetPath:
+                            selectedItem?.assetPath ??
+                            settings.selectedOverlayAssetPath,
+                      ),
+                    );
                   },
                   onDismissPolicyTypeChanged: (value) {
                     _updateDraft(
-                      settings.copyWithDismissPolicy(
-                        DismissPolicy(
+                      settings.copyWith(
+                        dismissPolicy: DismissPolicy(
                           type: value,
                           allowEarlyDismiss:
                               value == DismissPolicyType.timedOnly
-                                  ? false
-                                  : settings.dismissPolicy.allowEarlyDismiss,
+                              ? false
+                              : settings.dismissPolicy.allowEarlyDismiss,
                         ),
                       ),
                     );
                   },
                   onAllowEarlyDismissChanged: (value) {
                     _updateDraft(
-                      settings.copyWithDismissPolicy(
-                        DismissPolicy(
-                          type: settings.dismissPolicy.type,
-                          allowEarlyDismiss: value,
-                        ),
-                      ).normalized(),
+                      settings
+                          .copyWith(
+                            dismissPolicy: DismissPolicy(
+                              type: settings.dismissPolicy.type,
+                              allowEarlyDismiss: value,
+                            ),
+                          )
+                          .normalized(catalog),
                     );
                   },
-                  onSave: () => _saveSettings(settings),
+                  onSave: () => _saveSettings(settings, catalog),
                 ),
               ],
             ),
@@ -162,20 +184,23 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
     });
   }
 
-  Future<void> _saveSettings(OverlaySettings settings) async {
+  Future<void> _saveSettings(
+    OverlaySettings settings,
+    List<OverlayCatalogItem> catalog,
+  ) async {
     setState(() {
       _isSaving = true;
     });
 
     try {
-      await widget.saveSettings(settings.normalized());
+      await widget.saveSettings(settings.normalized(catalog));
       if (!mounted) {
         return;
       }
 
       final bool saveSucceeded =
           widget.overlayService.state.settings.hasSameValues(
-            settings.normalized(),
+            settings.normalized(catalog),
           ) &&
           widget.overlayService.state.lastError == null;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -196,15 +221,23 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
 }
 
 class _DebugPanel extends StatelessWidget {
-  const _DebugPanel({required this.state, required this.startup});
+  const _DebugPanel({
+    required this.state,
+    required this.startup,
+    required this.catalog,
+  });
 
   final OverlayFlowState state;
   final LaunchAtStartupService startup;
+  final List<OverlayCatalogItem> catalog;
 
   @override
   Widget build(BuildContext context) {
     final OverlaySettings settings = state.settings;
     final OverlayResult? result = state.lastResult;
+    final OverlayCatalogItem? selectedItem = catalog.isEmpty
+        ? null
+        : settings.selectedCatalogItem(catalog);
 
     return Card(
       child: Padding(
@@ -227,6 +260,8 @@ class _DebugPanel extends StatelessWidget {
               'Current cadence: ${settings.duration.value.inMinutes}m every ${settings.schedule.interval.inMinutes}m',
             ),
             const SizedBox(height: 8),
+            Text('Selected media: ${selectedItem?.title ?? 'loading catalog'}'),
+            const SizedBox(height: 8),
             Text(
               'Last overlay result: ${_resultSummary(result) ?? 'No completed session yet'}',
             ),
@@ -244,18 +279,14 @@ class _DebugPanel extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'Last overlay error: ${state.lastError}',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                ),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ],
             if (startup.lastError != null) ...[
               const SizedBox(height: 8),
               Text(
                 'Launch-at-login error: ${startup.lastError}',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                ),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ],
           ],
@@ -302,14 +333,15 @@ class _ActionsRow extends StatelessWidget {
           onPressed: onRefreshDisplays,
           child: const Text('Refresh displays'),
         ),
+        TextButton(onPressed: onRecover, child: const Text('Run recovery')),
         TextButton(
-          onPressed: onRecover,
-          child: const Text('Run recovery'),
-        ),
-        TextButton(
-          onPressed: state.lifecycle == OverlayState.paused ? onResume : onPause,
+          onPressed: state.lifecycle == OverlayState.paused
+              ? onResume
+              : onPause,
           child: Text(
-            state.lifecycle == OverlayState.paused ? 'Resume schedule' : 'Pause schedule',
+            state.lifecycle == OverlayState.paused
+                ? 'Resume schedule'
+                : 'Pause schedule',
           ),
         ),
       ],
@@ -318,10 +350,7 @@ class _ActionsRow extends StatelessWidget {
 }
 
 class _StartupPanel extends StatelessWidget {
-  const _StartupPanel({
-    required this.startup,
-    required this.onChanged,
-  });
+  const _StartupPanel({required this.startup, required this.onChanged});
 
   final LaunchAtStartupService startup;
   final ValueChanged<bool> onChanged;
@@ -334,10 +363,7 @@ class _StartupPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Startup',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Startup', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
@@ -360,22 +386,26 @@ class _StartupPanel extends StatelessWidget {
 class _SettingsPanel extends StatelessWidget {
   const _SettingsPanel({
     required this.settings,
+    required this.catalog,
     required this.isSaving,
     required this.onIntervalChanged,
     required this.onDurationChanged,
     required this.onInteractionModeChanged,
     required this.onFullscreenModeChanged,
+    required this.onOverlayChanged,
     required this.onDismissPolicyTypeChanged,
     required this.onAllowEarlyDismissChanged,
     required this.onSave,
   });
 
   final OverlaySettings settings;
+  final List<OverlayCatalogItem> catalog;
   final bool isSaving;
   final ValueChanged<int> onIntervalChanged;
   final ValueChanged<int> onDurationChanged;
   final ValueChanged<InteractionMode> onInteractionModeChanged;
   final ValueChanged<FullscreenMode> onFullscreenModeChanged;
+  final ValueChanged<String> onOverlayChanged;
   final ValueChanged<DismissPolicyType> onDismissPolicyTypeChanged;
   final ValueChanged<bool> onAllowEarlyDismissChanged;
   final VoidCallback onSave;
@@ -392,10 +422,31 @@ class _SettingsPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Settings',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Settings', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 16),
+            if (catalog.isEmpty)
+              const Text('Overlay media catalog is loading...')
+            else
+              DropdownButtonFormField<String>(
+                key: ValueKey('overlay-${settings.selectedOverlayId}'),
+                value: settings.selectedCatalogItem(catalog).id,
+                decoration: const InputDecoration(labelText: 'Break media'),
+                items: catalog
+                    .map(
+                      (item) => DropdownMenuItem<String>(
+                        value: item.id,
+                        child: Text(
+                          '${item.title} (${_assetExtensionLabel(item.assetPath)})',
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (value) {
+                  if (value != null) {
+                    onOverlayChanged(value);
+                  }
+                },
+              ),
             const SizedBox(height: 16),
             DropdownButtonFormField<int>(
               key: ValueKey('interval-${settings.schedule.interval.inMinutes}'),
@@ -496,7 +547,8 @@ class _SettingsPanel extends StatelessWidget {
             const SizedBox(height: 8),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              value: settings.dismissPolicy.allowEarlyDismiss &&
+              value:
+                  settings.dismissPolicy.allowEarlyDismiss &&
                   canUseEarlyDismiss,
               onChanged: canUseEarlyDismiss ? onAllowEarlyDismissChanged : null,
               title: const Text('Allow early dismiss'),
@@ -519,6 +571,12 @@ class _SettingsPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+String _assetExtensionLabel(String assetPath) {
+  final List<String> segments = assetPath.split('.');
+  final String extension = segments.length > 1 ? segments.last : '';
+  return extension.isEmpty ? 'asset' : extension.toUpperCase();
 }
 
 const List<int> _intervalOptions = <int>[15, 30, 45, 60, 90, 120];
@@ -549,7 +607,7 @@ String _dismissPolicyLabel(DismissPolicyType policy) {
     case DismissPolicyType.doubleClickAnywhere:
       return 'Double-click anywhere';
     case DismissPolicyType.doubleClickCat:
-      return 'Double-click cat';
+      return 'Double-click media';
   }
 }
 
@@ -576,86 +634,4 @@ String? _formatDateTime(DateTime? value) {
   String twoDigits(int part) => part.toString().padLeft(2, '0');
   return '${value.year}-${twoDigits(value.month)}-${twoDigits(value.day)} '
       '${twoDigits(value.hour)}:${twoDigits(value.minute)}:${twoDigits(value.second)}';
-}
-
-extension on OverlaySettings {
-  OverlaySettings copyWithSchedule(OverlaySchedule schedule) {
-    return OverlaySettings(
-      schedule: schedule,
-      duration: duration,
-      interactionMode: interactionMode,
-      fullscreenMode: fullscreenMode,
-      monitorScope: monitorScope,
-      dismissPolicy: dismissPolicy,
-    );
-  }
-
-  OverlaySettings copyWithDuration(OverlayDuration nextDuration) {
-    return OverlaySettings(
-      schedule: schedule,
-      duration: nextDuration,
-      interactionMode: interactionMode,
-      fullscreenMode: fullscreenMode,
-      monitorScope: monitorScope,
-      dismissPolicy: dismissPolicy,
-    );
-  }
-
-  OverlaySettings copyWithInteractionMode(InteractionMode nextMode) {
-    return OverlaySettings(
-      schedule: schedule,
-      duration: duration,
-      interactionMode: nextMode,
-      fullscreenMode: fullscreenMode,
-      monitorScope: monitorScope,
-      dismissPolicy: dismissPolicy,
-    );
-  }
-
-  OverlaySettings copyWithFullscreenMode(FullscreenMode nextMode) {
-    return OverlaySettings(
-      schedule: schedule,
-      duration: duration,
-      interactionMode: interactionMode,
-      fullscreenMode: nextMode,
-      monitorScope: monitorScope,
-      dismissPolicy: dismissPolicy,
-    );
-  }
-
-  OverlaySettings copyWithDismissPolicy(DismissPolicy nextPolicy) {
-    return OverlaySettings(
-      schedule: schedule,
-      duration: duration,
-      interactionMode: interactionMode,
-      fullscreenMode: fullscreenMode,
-      monitorScope: monitorScope,
-      dismissPolicy: nextPolicy,
-    );
-  }
-
-  OverlaySettings normalized() {
-    if (dismissPolicy.type == DismissPolicyType.timedOnly ||
-        interactionMode == InteractionMode.passthrough) {
-      return copyWithDismissPolicy(
-        DismissPolicy(
-          type: dismissPolicy.type,
-          allowEarlyDismiss: false,
-        ),
-      );
-    }
-
-    return this;
-  }
-
-  bool hasSameValues(OverlaySettings other) {
-    return schedule.interval == other.schedule.interval &&
-        schedule.startImmediately == other.schedule.startImmediately &&
-        duration.value == other.duration.value &&
-        interactionMode == other.interactionMode &&
-        fullscreenMode == other.fullscreenMode &&
-        monitorScope == other.monitorScope &&
-        dismissPolicy.type == other.dismissPolicy.type &&
-        dismissPolicy.allowEarlyDismiss == other.dismissPolicy.allowEarlyDismiss;
-  }
 }

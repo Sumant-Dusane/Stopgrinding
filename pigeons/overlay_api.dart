@@ -1,24 +1,12 @@
 import 'package:pigeon/pigeon.dart';
 
-enum InteractionModeDto {
-  blocking,
-  passthrough,
-}
+enum InteractionModeDto { blocking, passthrough }
 
-enum FullscreenModeDto {
-  disabled,
-  enabled,
-}
+enum FullscreenModeDto { disabled, enabled }
 
-enum MonitorScopeDto {
-  allDisplays,
-}
+enum MonitorScopeDto { allDisplays }
 
-enum DismissPolicyTypeDto {
-  timedOnly,
-  doubleClickAnywhere,
-  doubleClickCat,
-}
+enum DismissPolicyTypeDto { timedOnly, doubleClickAnywhere, doubleClickCat }
 
 enum OverlayStateDto {
   idle,
@@ -47,6 +35,8 @@ class OverlaySettingsDto {
     required this.monitorScope,
     required this.dismissPolicyType,
     required this.allowEarlyDismiss,
+    required this.selectedOverlayId,
+    required this.selectedOverlayAssetPath,
   });
 
   final int intervalMillis;
@@ -56,6 +46,20 @@ class OverlaySettingsDto {
   final MonitorScopeDto monitorScope;
   final DismissPolicyTypeDto dismissPolicyType;
   final bool allowEarlyDismiss;
+  final String selectedOverlayId;
+  final String selectedOverlayAssetPath;
+}
+
+class OverlayCatalogItemDto {
+  OverlayCatalogItemDto({
+    required this.id,
+    required this.title,
+    required this.assetPath,
+  });
+
+  final String id;
+  final String title;
+  final String assetPath;
 }
 
 class OverlayRequestDto {
@@ -71,10 +75,7 @@ class OverlayRequestDto {
 }
 
 class HideOverlayRequestDto {
-  HideOverlayRequestDto({
-    required this.reason,
-    this.requestedAtEpochMillis,
-  });
+  HideOverlayRequestDto({required this.reason, this.requestedAtEpochMillis});
 
   final OverlayDismissReasonDto reason;
   final int? requestedAtEpochMillis;
@@ -117,10 +118,7 @@ class OverlayDismissedDto {
 }
 
 class OverlayErrorDto {
-  OverlayErrorDto({
-    required this.code,
-    required this.message,
-  });
+  OverlayErrorDto({required this.code, required this.message});
 
   final String code;
   final String message;
@@ -157,6 +155,8 @@ abstract class OverlayHostApi {
   void hideOverlay(HideOverlayRequestDto request);
 
   void updateSettings(OverlaySettingsDto settings);
+
+  List<OverlayCatalogItemDto> getOverlayCatalog();
 
   void refreshDisplays();
 

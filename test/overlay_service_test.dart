@@ -27,6 +27,8 @@ void main() {
       expect(service.state.lifecycle, OverlayState.scheduled);
       expect(service.state.nextTriggerAt, scheduler.nextTriggerAt);
       expect(controller.updatedSettings, isNotNull);
+      expect(service.state.catalog, isNotEmpty);
+      expect(service.state.settings.selectedOverlayId, 'pixel-stretch');
       expect(service.state.lastResult, isNull);
     },
   );
@@ -116,6 +118,13 @@ class _FakeOverlayController implements OverlayController {
   OverlaySettings? updatedSettings;
   OverlaySettings? shownSettings;
   OverlayDismissReason? hiddenReason;
+  List<OverlayCatalogItem> catalog = const <OverlayCatalogItem>[
+    OverlayCatalogItem(
+      id: 'pixel-stretch',
+      title: 'Pixel Stretch',
+      assetPath: 'assets/overlays/pixel_stretch/animation.mov',
+    ),
+  ];
 
   @override
   Stream<OverlayEvent> get events => _eventsController.stream;
@@ -136,6 +145,9 @@ class _FakeOverlayController implements OverlayController {
 
   @override
   Future<void> initialize() async {}
+
+  @override
+  Future<List<OverlayCatalogItem>> getOverlayCatalog() async => catalog;
 
   @override
   Future<void> refreshDisplays() async {}

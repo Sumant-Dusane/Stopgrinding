@@ -82,6 +82,8 @@ class OverlaySettingsDto {
     required this.monitorScope,
     required this.dismissPolicyType,
     required this.allowEarlyDismiss,
+    required this.selectedOverlayId,
+    required this.selectedOverlayAssetPath,
   });
 
   int intervalMillis;
@@ -98,6 +100,10 @@ class OverlaySettingsDto {
 
   bool allowEarlyDismiss;
 
+  String selectedOverlayId;
+
+  String selectedOverlayAssetPath;
+
   List<Object?> _toList() {
     return <Object?>[
       intervalMillis,
@@ -107,6 +113,8 @@ class OverlaySettingsDto {
       monitorScope,
       dismissPolicyType,
       allowEarlyDismiss,
+      selectedOverlayId,
+      selectedOverlayAssetPath,
     ];
   }
 
@@ -124,6 +132,8 @@ class OverlaySettingsDto {
       monitorScope: result[4]! as MonitorScopeDto,
       dismissPolicyType: result[5]! as DismissPolicyTypeDto,
       allowEarlyDismiss: result[6]! as bool,
+      selectedOverlayId: result[7]! as String,
+      selectedOverlayAssetPath: result[8]! as String,
     );
   }
 
@@ -131,6 +141,53 @@ class OverlaySettingsDto {
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
     if (other is! OverlaySettingsDto || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList());
+}
+
+class OverlayCatalogItemDto {
+  OverlayCatalogItemDto({
+    required this.id,
+    required this.title,
+    required this.assetPath,
+  });
+
+  String id;
+
+  String title;
+
+  String assetPath;
+
+  List<Object?> _toList() {
+    return <Object?>[id, title, assetPath];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static OverlayCatalogItemDto decode(Object result) {
+    result as List<Object?>;
+    return OverlayCatalogItemDto(
+      id: result[0]! as String,
+      title: result[1]! as String,
+      assetPath: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! OverlayCatalogItemDto || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -530,29 +587,32 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is OverlaySettingsDto) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    } else if (value is OverlayRequestDto) {
+    } else if (value is OverlayCatalogItemDto) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    } else if (value is HideOverlayRequestDto) {
+    } else if (value is OverlayRequestDto) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    } else if (value is DisplayTargetDto) {
+    } else if (value is HideOverlayRequestDto) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    } else if (value is OverlaySessionDto) {
+    } else if (value is DisplayTargetDto) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    } else if (value is OverlayDismissedDto) {
+    } else if (value is OverlaySessionDto) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    } else if (value is OverlayErrorDto) {
+    } else if (value is OverlayDismissedDto) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    } else if (value is DisplayTopologyDto) {
+    } else if (value is OverlayErrorDto) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    } else if (value is OverlayStatusDto) {
+    } else if (value is DisplayTopologyDto) {
       buffer.putUint8(143);
+      writeValue(buffer, value.encode());
+    } else if (value is OverlayStatusDto) {
+      buffer.putUint8(144);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -583,20 +643,22 @@ class _PigeonCodec extends StandardMessageCodec {
       case 135:
         return OverlaySettingsDto.decode(readValue(buffer)!);
       case 136:
-        return OverlayRequestDto.decode(readValue(buffer)!);
+        return OverlayCatalogItemDto.decode(readValue(buffer)!);
       case 137:
-        return HideOverlayRequestDto.decode(readValue(buffer)!);
+        return OverlayRequestDto.decode(readValue(buffer)!);
       case 138:
-        return DisplayTargetDto.decode(readValue(buffer)!);
+        return HideOverlayRequestDto.decode(readValue(buffer)!);
       case 139:
-        return OverlaySessionDto.decode(readValue(buffer)!);
+        return DisplayTargetDto.decode(readValue(buffer)!);
       case 140:
-        return OverlayDismissedDto.decode(readValue(buffer)!);
+        return OverlaySessionDto.decode(readValue(buffer)!);
       case 141:
-        return OverlayErrorDto.decode(readValue(buffer)!);
+        return OverlayDismissedDto.decode(readValue(buffer)!);
       case 142:
-        return DisplayTopologyDto.decode(readValue(buffer)!);
+        return OverlayErrorDto.decode(readValue(buffer)!);
       case 143:
+        return DisplayTopologyDto.decode(readValue(buffer)!);
+      case 144:
         return OverlayStatusDto.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -724,6 +786,37 @@ class OverlayHostApi {
       );
     } else {
       return;
+    }
+  }
+
+  Future<List<OverlayCatalogItemDto>> getOverlayCatalog() async {
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.stopgrinding.OverlayHostApi.getOverlayCatalog$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
+          pigeonVar_channelName,
+          pigeonChannelCodec,
+          binaryMessenger: pigeonVar_binaryMessenger,
+        );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as List<Object?>?)!
+          .cast<OverlayCatalogItemDto>();
     }
   }
 

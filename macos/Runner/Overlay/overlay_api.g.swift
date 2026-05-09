@@ -179,6 +179,8 @@ struct OverlaySettingsDto: Hashable {
   var monitorScope: MonitorScopeDto
   var dismissPolicyType: DismissPolicyTypeDto
   var allowEarlyDismiss: Bool
+  var selectedOverlayId: String
+  var selectedOverlayAssetPath: String
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -190,6 +192,8 @@ struct OverlaySettingsDto: Hashable {
     let monitorScope = pigeonVar_list[4] as! MonitorScopeDto
     let dismissPolicyType = pigeonVar_list[5] as! DismissPolicyTypeDto
     let allowEarlyDismiss = pigeonVar_list[6] as! Bool
+    let selectedOverlayId = pigeonVar_list[7] as! String
+    let selectedOverlayAssetPath = pigeonVar_list[8] as! String
 
     return OverlaySettingsDto(
       intervalMillis: intervalMillis,
@@ -198,7 +202,9 @@ struct OverlaySettingsDto: Hashable {
       fullscreenMode: fullscreenMode,
       monitorScope: monitorScope,
       dismissPolicyType: dismissPolicyType,
-      allowEarlyDismiss: allowEarlyDismiss
+      allowEarlyDismiss: allowEarlyDismiss,
+      selectedOverlayId: selectedOverlayId,
+      selectedOverlayAssetPath: selectedOverlayAssetPath
     )
   }
   func toList() -> [Any?] {
@@ -210,9 +216,44 @@ struct OverlaySettingsDto: Hashable {
       monitorScope,
       dismissPolicyType,
       allowEarlyDismiss,
+      selectedOverlayId,
+      selectedOverlayAssetPath,
     ]
   }
   static func == (lhs: OverlaySettingsDto, rhs: OverlaySettingsDto) -> Bool {
+    return deepEqualsoverlay_api(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashoverlay_api(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct OverlayCatalogItemDto: Hashable {
+  var id: String
+  var title: String
+  var assetPath: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> OverlayCatalogItemDto? {
+    let id = pigeonVar_list[0] as! String
+    let title = pigeonVar_list[1] as! String
+    let assetPath = pigeonVar_list[2] as! String
+
+    return OverlayCatalogItemDto(
+      id: id,
+      title: title,
+      assetPath: assetPath
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      id,
+      title,
+      assetPath,
+    ]
+  }
+  static func == (lhs: OverlayCatalogItemDto, rhs: OverlayCatalogItemDto) -> Bool {
     return deepEqualsoverlay_api(lhs.toList(), rhs.toList())  }
   func hash(into hasher: inout Hasher) {
     deepHashoverlay_api(value: toList(), hasher: &hasher)
@@ -513,20 +554,22 @@ private class OverlayApiPigeonCodecReader: FlutterStandardReader {
     case 135:
       return OverlaySettingsDto.fromList(self.readValue() as! [Any?])
     case 136:
-      return OverlayRequestDto.fromList(self.readValue() as! [Any?])
+      return OverlayCatalogItemDto.fromList(self.readValue() as! [Any?])
     case 137:
-      return HideOverlayRequestDto.fromList(self.readValue() as! [Any?])
+      return OverlayRequestDto.fromList(self.readValue() as! [Any?])
     case 138:
-      return DisplayTargetDto.fromList(self.readValue() as! [Any?])
+      return HideOverlayRequestDto.fromList(self.readValue() as! [Any?])
     case 139:
-      return OverlaySessionDto.fromList(self.readValue() as! [Any?])
+      return DisplayTargetDto.fromList(self.readValue() as! [Any?])
     case 140:
-      return OverlayDismissedDto.fromList(self.readValue() as! [Any?])
+      return OverlaySessionDto.fromList(self.readValue() as! [Any?])
     case 141:
-      return OverlayErrorDto.fromList(self.readValue() as! [Any?])
+      return OverlayDismissedDto.fromList(self.readValue() as! [Any?])
     case 142:
-      return DisplayTopologyDto.fromList(self.readValue() as! [Any?])
+      return OverlayErrorDto.fromList(self.readValue() as! [Any?])
     case 143:
+      return DisplayTopologyDto.fromList(self.readValue() as! [Any?])
+    case 144:
       return OverlayStatusDto.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -557,29 +600,32 @@ private class OverlayApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? OverlaySettingsDto {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? OverlayRequestDto {
+    } else if let value = value as? OverlayCatalogItemDto {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? HideOverlayRequestDto {
+    } else if let value = value as? OverlayRequestDto {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? DisplayTargetDto {
+    } else if let value = value as? HideOverlayRequestDto {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? OverlaySessionDto {
+    } else if let value = value as? DisplayTargetDto {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? OverlayDismissedDto {
+    } else if let value = value as? OverlaySessionDto {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? OverlayErrorDto {
+    } else if let value = value as? OverlayDismissedDto {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? DisplayTopologyDto {
+    } else if let value = value as? OverlayErrorDto {
       super.writeByte(142)
       super.writeValue(value.toList())
-    } else if let value = value as? OverlayStatusDto {
+    } else if let value = value as? DisplayTopologyDto {
       super.writeByte(143)
+      super.writeValue(value.toList())
+    } else if let value = value as? OverlayStatusDto {
+      super.writeByte(144)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -607,6 +653,7 @@ protocol OverlayHostApi {
   func showOverlay(request: OverlayRequestDto) throws
   func hideOverlay(request: HideOverlayRequestDto) throws
   func updateSettings(settings: OverlaySettingsDto) throws
+  func getOverlayCatalog() throws -> [OverlayCatalogItemDto]
   func refreshDisplays() throws
   func getOverlayStatus() throws -> OverlayStatusDto
 }
@@ -674,6 +721,19 @@ class OverlayHostApiSetup {
       }
     } else {
       updateSettingsChannel.setMessageHandler(nil)
+    }
+    let getOverlayCatalogChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.stopgrinding.OverlayHostApi.getOverlayCatalog\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getOverlayCatalogChannel.setMessageHandler { _, reply in
+        do {
+          let result = try api.getOverlayCatalog()
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      getOverlayCatalogChannel.setMessageHandler(nil)
     }
     let refreshDisplaysChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.stopgrinding.OverlayHostApi.refreshDisplays\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

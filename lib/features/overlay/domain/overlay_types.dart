@@ -32,10 +32,18 @@ enum OverlayEventType {
   stateChanged,
 }
 
-enum OverlayResultType {
-  shown,
-  dismissed,
-  failed,
+enum OverlayResultType { shown, dismissed, failed }
+
+class OverlayCatalogItem {
+  const OverlayCatalogItem({
+    required this.id,
+    required this.title,
+    required this.assetPath,
+  });
+
+  final String id;
+  final String title;
+  final String assetPath;
 }
 
 class OverlayDuration {
@@ -81,6 +89,8 @@ class OverlaySettings {
     required this.fullscreenMode,
     required this.monitorScope,
     required this.dismissPolicy,
+    required this.selectedOverlayId,
+    required this.selectedOverlayAssetPath,
   });
 
   factory OverlaySettings.defaults() {
@@ -91,6 +101,8 @@ class OverlaySettings {
       fullscreenMode: FullscreenMode.disabled,
       monitorScope: MonitorScope.allDisplays,
       dismissPolicy: const DismissPolicy(type: DismissPolicyType.timedOnly),
+      selectedOverlayId: '',
+      selectedOverlayAssetPath: '',
     );
   }
 
@@ -100,6 +112,103 @@ class OverlaySettings {
   final FullscreenMode fullscreenMode;
   final MonitorScope monitorScope;
   final DismissPolicy dismissPolicy;
+  final String selectedOverlayId;
+  final String selectedOverlayAssetPath;
+
+  OverlaySettings copyWith({
+    OverlaySchedule? schedule,
+    OverlayDuration? duration,
+    InteractionMode? interactionMode,
+    FullscreenMode? fullscreenMode,
+    MonitorScope? monitorScope,
+    DismissPolicy? dismissPolicy,
+    String? selectedOverlayId,
+    String? selectedOverlayAssetPath,
+  }) {
+    return OverlaySettings(
+      schedule: schedule ?? this.schedule,
+      duration: duration ?? this.duration,
+      interactionMode: interactionMode ?? this.interactionMode,
+      fullscreenMode: fullscreenMode ?? this.fullscreenMode,
+      monitorScope: monitorScope ?? this.monitorScope,
+      dismissPolicy: dismissPolicy ?? this.dismissPolicy,
+      selectedOverlayId: selectedOverlayId ?? this.selectedOverlayId,
+      selectedOverlayAssetPath:
+          selectedOverlayAssetPath ?? this.selectedOverlayAssetPath,
+    );
+  }
+
+  OverlaySettings normalized([
+    List<OverlayCatalogItem> catalog = const <OverlayCatalogItem>[],
+  ]) {
+    final bool shouldDisableEarlyDismiss =
+        dismissPolicy.type == DismissPolicyType.timedOnly ||
+        interactionMode == InteractionMode.passthrough;
+    final OverlayCatalogItem? resolvedOverlay = _resolveCatalogItem(
+      selectedOverlayId: selectedOverlayId,
+      selectedOverlayAssetPath: selectedOverlayAssetPath,
+      catalog: catalog,
+    );
+
+    return copyWith(
+      dismissPolicy: shouldDisableEarlyDismiss
+          ? DismissPolicy(type: dismissPolicy.type, allowEarlyDismiss: false)
+          : dismissPolicy,
+      selectedOverlayId: resolvedOverlay?.id ?? selectedOverlayId,
+      selectedOverlayAssetPath:
+          resolvedOverlay?.assetPath ?? selectedOverlayAssetPath,
+    );
+  }
+
+  OverlayCatalogItem selectedCatalogItem(List<OverlayCatalogItem> catalog) {
+    final OverlayCatalogItem? item = _resolveCatalogItem(
+      selectedOverlayId: selectedOverlayId,
+      selectedOverlayAssetPath: selectedOverlayAssetPath,
+      catalog: catalog,
+    );
+    if (item != null) {
+      return item;
+    }
+    throw StateError('No overlay catalog items are available.');
+  }
+
+  bool hasSameValues(OverlaySettings other) {
+    return schedule.interval == other.schedule.interval &&
+        schedule.startImmediately == other.schedule.startImmediately &&
+        duration.value == other.duration.value &&
+        interactionMode == other.interactionMode &&
+        fullscreenMode == other.fullscreenMode &&
+        monitorScope == other.monitorScope &&
+        dismissPolicy.type == other.dismissPolicy.type &&
+        dismissPolicy.allowEarlyDismiss ==
+            other.dismissPolicy.allowEarlyDismiss &&
+        selectedOverlayId == other.selectedOverlayId &&
+        selectedOverlayAssetPath == other.selectedOverlayAssetPath;
+  }
+}
+
+OverlayCatalogItem? _resolveCatalogItem({
+  required String selectedOverlayId,
+  required String selectedOverlayAssetPath,
+  required List<OverlayCatalogItem> catalog,
+}) {
+  for (final OverlayCatalogItem item in catalog) {
+    if (item.id == selectedOverlayId) {
+      return item;
+    }
+  }
+
+  for (final OverlayCatalogItem item in catalog) {
+    if (item.assetPath == selectedOverlayAssetPath) {
+      return item;
+    }
+  }
+
+  if (catalog.isNotEmpty) {
+    return catalog.first;
+  }
+
+  return null;
 }
 
 class OverlaySession {

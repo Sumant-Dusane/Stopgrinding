@@ -44,6 +44,7 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Manual trigger'), findsOneWidget);
     expect(find.text('Startup'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Break media'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Save settings'), findsOneWidget);
   });
 }
@@ -81,6 +82,16 @@ class _FakeOverlayController implements OverlayController {
 
   @override
   Future<domain.OverlayStatus> getStatus() async => _status;
+
+  @override
+  Future<List<domain.OverlayCatalogItem>> getOverlayCatalog() async =>
+      const <domain.OverlayCatalogItem>[
+        domain.OverlayCatalogItem(
+          id: 'neko-cat',
+          title: 'Neko Cat',
+          assetPath: 'assets/overlays/neko_cat/animation.mov',
+        ),
+      ];
 
   @override
   Future<void> hideOverlay({
