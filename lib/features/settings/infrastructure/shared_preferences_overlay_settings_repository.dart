@@ -67,6 +67,8 @@ class SharedPreferencesOverlaySettingsRepository
       ),
       selectedOverlayId: selectedOverlayId,
       selectedOverlayAssetPath: selectedOverlayAssetPath,
+      selectedOverlayLoopStart: defaults.selectedOverlayLoopStart,
+      selectedOverlayLoopEnd: defaults.selectedOverlayLoopEnd,
     ).normalized();
   }
 

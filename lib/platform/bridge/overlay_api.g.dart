@@ -84,6 +84,8 @@ class OverlaySettingsDto {
     required this.allowEarlyDismiss,
     required this.selectedOverlayId,
     required this.selectedOverlayAssetPath,
+    required this.selectedOverlayLoopStartMillis,
+    this.selectedOverlayLoopEndMillis,
   });
 
   int intervalMillis;
@@ -104,6 +106,10 @@ class OverlaySettingsDto {
 
   String selectedOverlayAssetPath;
 
+  int selectedOverlayLoopStartMillis;
+
+  int? selectedOverlayLoopEndMillis;
+
   List<Object?> _toList() {
     return <Object?>[
       intervalMillis,
@@ -115,6 +121,8 @@ class OverlaySettingsDto {
       allowEarlyDismiss,
       selectedOverlayId,
       selectedOverlayAssetPath,
+      selectedOverlayLoopStartMillis,
+      selectedOverlayLoopEndMillis,
     ];
   }
 
@@ -134,6 +142,8 @@ class OverlaySettingsDto {
       allowEarlyDismiss: result[6]! as bool,
       selectedOverlayId: result[7]! as String,
       selectedOverlayAssetPath: result[8]! as String,
+      selectedOverlayLoopStartMillis: result[9]! as int,
+      selectedOverlayLoopEndMillis: result[10] as int?,
     );
   }
 

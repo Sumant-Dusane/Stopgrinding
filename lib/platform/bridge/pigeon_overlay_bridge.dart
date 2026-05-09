@@ -153,6 +153,10 @@ OverlaySettingsDto _mapSettings(OverlaySettings settings) {
     allowEarlyDismiss: settings.dismissPolicy.allowEarlyDismiss,
     selectedOverlayId: settings.selectedOverlayId,
     selectedOverlayAssetPath: settings.selectedOverlayAssetPath,
+    selectedOverlayLoopStartMillis:
+        settings.selectedOverlayLoopStart.inMilliseconds,
+    selectedOverlayLoopEndMillis:
+        settings.selectedOverlayLoopEnd?.inMilliseconds,
   );
 }
 

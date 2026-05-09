@@ -207,11 +207,16 @@ Use value objects and enums. Avoid flat bags of booleans.
   - `id`
   - `title`
   - `assetPath`
+  - `loopStart`
+  - optional `loopEnd`
 - Native rendering should load the selected Flutter `assetPath` directly from the app bundle.
 - Prefer video formats with first-class macOS-native playback support, such as `mov`, `mp4`, and `m4v`.
 - Avoid treating `webm` as a primary product format for macOS unless a documented native playback path is intentionally adopted.
 - Treat image-based overlay formats as out of scope for the simplified macOS pipeline.
-- Overlay media should fill the whole screen surface on each display.
+- Overlay media should render in a padded viewport-safe presentation area rather than being hard-flush to the screen edges.
+- The current macOS presentation is a bottom-right anchored media card that slides in from the right when shown.
+- Loop metadata should describe the steady-state seamless segment; if the asset has an intro, native playback may play the intro once and then loop only the declared segment.
+- If the product expects the user desktop to show through around the subject, the shipped video asset itself must include alpha transparency.
 
 ### Enums
 - `InteractionMode { blocking, passthrough }`

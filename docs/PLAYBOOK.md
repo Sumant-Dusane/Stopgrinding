@@ -36,7 +36,8 @@ AGENT SHOULD STRICTLY FOLLOW `docs/AGENTS.md` AND THIS FILE. If any work conflic
   - Phase 9: Startup And Debugging
   - Phase 10: Polish And Release Readiness
   - Phase 11: GIF Catalog And Contract Refresh
-- Current phase: Phase 12: Native macOS Media Pipeline
+  - Phase 12: Native macOS Media Pipeline
+- Current phase: Phase 13: Transparent Settings And Comic Theme System
 
 ## Phase Format
 Each phase must produce:
@@ -447,7 +448,7 @@ Replace cat-specific overlay assumptions with a durable bundled-media catalog mo
 
 ---
 
-## Phase 12: Transparent Settings And Comic Theme System
+## Phase 13: Transparent Settings And Comic Theme System
 ### Goal
 Revamp the app shell into a transparent comic-style experience with a maintainable theme architecture.
 
@@ -484,7 +485,7 @@ Revamp the app shell into a transparent comic-style experience with a maintainab
 
 ---
 
-## Phase 13: macOS Quick-Open Nudge And Settings UX Flow
+## Phase 14: macOS Quick-Open Nudge And Settings UX Flow
 ### Goal
 Add a lightweight macOS entrypoint that opens settings quickly without depending on the main screen layout.
 
@@ -515,7 +516,7 @@ Add a lightweight macOS entrypoint that opens settings quickly without depending
 
 ---
 
-## Phase 14: Update Delivery And Media Content Expansion
+## Phase 15: Update Delivery And Media Content Expansion
 ### Goal
 Ship a real update path so users can discover and install app releases that add new media packs.
 
@@ -549,7 +550,7 @@ Ship a real update path so users can discover and install app releases that add 
 
 ---
 
-## Optional Phase 15: Windows Port
+## Optional Phase 16: Windows Port
 ### Goal
 Add Windows by implementing the same abstraction family, not by altering app logic.
 
@@ -652,12 +653,15 @@ Replace the current mixed HTML/WebKit media rendering path with native macOS vid
   - `mp4`
   - `m4v`
 - Continue loading selected media from Flutter `assets/`.
-- Ensure the overlay media fills the full screen bounds for each display.
+- Honor shared Dart loop metadata for intro and steady-state loop segments.
+- Present the media in a viewport-safe padded layout rather than flush to the screen edges.
+- Add a right-side slide-in entrance for the active overlay media card.
 - Update catalog/docs so product guidance no longer presents `webm` or image formats as primary macOS overlay formats.
 
 ### Deliverables
 - Native macOS renderer no longer depends on `WKWebView` for the main supported video path.
-- Full-screen media fitting behavior is implemented with native views/layers.
+- Shared catalog loop timing is respected by the native player.
+- Native presentation uses a padded bottom-right media card with slide-in entrance behavior.
 - Catalog and docs clearly describe that shipped overlay media is video-only on macOS.
 
 ### Verification
@@ -665,13 +669,17 @@ Replace the current mixed HTML/WebKit media rendering path with native macOS vid
 - `flutter analyze`
 - `flutter build macos`
 - manual validation with at least one native video asset
+- confirm the steady-state loop avoids the earlier hard-seek hitch
 
 ### Exit Criteria
 - Selected Flutter asset path is rendered through native macOS media APIs.
-- Overlay media occupies the full display-sized overlay surface.
+- Overlay media stays within the visible display bounds with padding.
 - Product docs align with native-supported video-only guidance.
 
-### Handoff Note Template
-- native renderer classes changed
-- supported media formats after the cut
-- manual runtime results and any remaining fallback gaps
+### Handoff Note
+- Phase 12 completed for the current macOS path.
+- Native overlay playback now uses AVFoundation with a padded bottom-right media card and slide-in entrance.
+- The initial seek-based subrange loop was replaced with intro-then-loop playback using a looping composition to reduce visible seam flicker.
+- Current bundled cat asset is `assets/overlays/neko_cat/output_small.mov`.
+- Current bundled cat loop metadata is `10.950s -> 18.850s`.
+- Full verification is still environment-dependent because local build/analyze commands may be blocked by sandboxed Flutter/Xcode cache writes or network-restricted Swift package resolution.

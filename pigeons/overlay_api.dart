@@ -37,6 +37,8 @@ class OverlaySettingsDto {
     required this.allowEarlyDismiss,
     required this.selectedOverlayId,
     required this.selectedOverlayAssetPath,
+    required this.selectedOverlayLoopStartMillis,
+    this.selectedOverlayLoopEndMillis,
   });
 
   final int intervalMillis;
@@ -48,6 +50,8 @@ class OverlaySettingsDto {
   final bool allowEarlyDismiss;
   final String selectedOverlayId;
   final String selectedOverlayAssetPath;
+  final int selectedOverlayLoopStartMillis;
+  final int? selectedOverlayLoopEndMillis;
 }
 
 class OverlayRequestDto {

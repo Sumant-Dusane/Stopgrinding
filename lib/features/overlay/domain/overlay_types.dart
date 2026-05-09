@@ -39,11 +39,15 @@ class OverlayCatalogItem {
     required this.id,
     required this.title,
     required this.assetPath,
+    this.loopStart = Duration.zero,
+    this.loopEnd,
   });
 
   final String id;
   final String title;
   final String assetPath;
+  final Duration loopStart;
+  final Duration? loopEnd;
 }
 
 class OverlayDuration {
@@ -91,6 +95,8 @@ class OverlaySettings {
     required this.dismissPolicy,
     required this.selectedOverlayId,
     required this.selectedOverlayAssetPath,
+    required this.selectedOverlayLoopStart,
+    required this.selectedOverlayLoopEnd,
   });
 
   factory OverlaySettings.defaults() {
@@ -103,6 +109,8 @@ class OverlaySettings {
       dismissPolicy: const DismissPolicy(type: DismissPolicyType.timedOnly),
       selectedOverlayId: '',
       selectedOverlayAssetPath: '',
+      selectedOverlayLoopStart: Duration.zero,
+      selectedOverlayLoopEnd: null,
     );
   }
 
@@ -114,6 +122,8 @@ class OverlaySettings {
   final DismissPolicy dismissPolicy;
   final String selectedOverlayId;
   final String selectedOverlayAssetPath;
+  final Duration selectedOverlayLoopStart;
+  final Duration? selectedOverlayLoopEnd;
 
   OverlaySettings copyWith({
     OverlaySchedule? schedule,
@@ -124,6 +134,8 @@ class OverlaySettings {
     DismissPolicy? dismissPolicy,
     String? selectedOverlayId,
     String? selectedOverlayAssetPath,
+    Duration? selectedOverlayLoopStart,
+    Object? selectedOverlayLoopEnd = _overlayLoopSentinel,
   }) {
     return OverlaySettings(
       schedule: schedule ?? this.schedule,
@@ -135,6 +147,12 @@ class OverlaySettings {
       selectedOverlayId: selectedOverlayId ?? this.selectedOverlayId,
       selectedOverlayAssetPath:
           selectedOverlayAssetPath ?? this.selectedOverlayAssetPath,
+      selectedOverlayLoopStart:
+          selectedOverlayLoopStart ?? this.selectedOverlayLoopStart,
+      selectedOverlayLoopEnd:
+          identical(selectedOverlayLoopEnd, _overlayLoopSentinel)
+          ? this.selectedOverlayLoopEnd
+          : selectedOverlayLoopEnd as Duration?,
     );
   }
 
@@ -157,6 +175,10 @@ class OverlaySettings {
       selectedOverlayId: resolvedOverlay?.id ?? selectedOverlayId,
       selectedOverlayAssetPath:
           resolvedOverlay?.assetPath ?? selectedOverlayAssetPath,
+      selectedOverlayLoopStart:
+          resolvedOverlay?.loopStart ?? selectedOverlayLoopStart,
+      selectedOverlayLoopEnd:
+          resolvedOverlay?.loopEnd ?? selectedOverlayLoopEnd,
     );
   }
 
@@ -183,9 +205,13 @@ class OverlaySettings {
         dismissPolicy.allowEarlyDismiss ==
             other.dismissPolicy.allowEarlyDismiss &&
         selectedOverlayId == other.selectedOverlayId &&
-        selectedOverlayAssetPath == other.selectedOverlayAssetPath;
+        selectedOverlayAssetPath == other.selectedOverlayAssetPath &&
+        selectedOverlayLoopStart == other.selectedOverlayLoopStart &&
+        selectedOverlayLoopEnd == other.selectedOverlayLoopEnd;
   }
 }
+
+const Object _overlayLoopSentinel = Object();
 
 OverlayCatalogItem? _resolveCatalogItem({
   required String selectedOverlayId,

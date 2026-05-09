@@ -181,6 +181,8 @@ struct OverlaySettingsDto: Hashable {
   var allowEarlyDismiss: Bool
   var selectedOverlayId: String
   var selectedOverlayAssetPath: String
+  var selectedOverlayLoopStartMillis: Int64
+  var selectedOverlayLoopEndMillis: Int64? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -194,6 +196,8 @@ struct OverlaySettingsDto: Hashable {
     let allowEarlyDismiss = pigeonVar_list[6] as! Bool
     let selectedOverlayId = pigeonVar_list[7] as! String
     let selectedOverlayAssetPath = pigeonVar_list[8] as! String
+    let selectedOverlayLoopStartMillis = pigeonVar_list[9] as! Int64
+    let selectedOverlayLoopEndMillis: Int64? = nilOrValue(pigeonVar_list[10])
 
     return OverlaySettingsDto(
       intervalMillis: intervalMillis,
@@ -204,7 +208,9 @@ struct OverlaySettingsDto: Hashable {
       dismissPolicyType: dismissPolicyType,
       allowEarlyDismiss: allowEarlyDismiss,
       selectedOverlayId: selectedOverlayId,
-      selectedOverlayAssetPath: selectedOverlayAssetPath
+      selectedOverlayAssetPath: selectedOverlayAssetPath,
+      selectedOverlayLoopStartMillis: selectedOverlayLoopStartMillis,
+      selectedOverlayLoopEndMillis: selectedOverlayLoopEndMillis
     )
   }
   func toList() -> [Any?] {
@@ -218,6 +224,8 @@ struct OverlaySettingsDto: Hashable {
       allowEarlyDismiss,
       selectedOverlayId,
       selectedOverlayAssetPath,
+      selectedOverlayLoopStartMillis,
+      selectedOverlayLoopEndMillis,
     ]
   }
   static func == (lhs: OverlaySettingsDto, rhs: OverlaySettingsDto) -> Bool {

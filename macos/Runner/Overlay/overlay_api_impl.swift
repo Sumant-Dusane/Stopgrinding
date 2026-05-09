@@ -61,7 +61,9 @@ final class OverlayApiImpl: OverlayHostApi {
     dismissPolicyType: .timedOnly,
     allowEarlyDismiss: false,
     selectedOverlayId: "",
-    selectedOverlayAssetPath: ""
+    selectedOverlayAssetPath: "",
+    selectedOverlayLoopStartMillis: 0,
+    selectedOverlayLoopEndMillis: nil
   )
   private var state: OverlayStateDto = .idle
   private var activeSession: OverlaySessionDto?
@@ -157,7 +159,9 @@ final class OverlayApiImpl: OverlayHostApi {
     return OverlayMediaItem(
       id: settings.selectedOverlayId.isEmpty ? "selected-video" : settings.selectedOverlayId,
       title: title,
-      assetPath: settings.selectedOverlayAssetPath
+      assetPath: settings.selectedOverlayAssetPath,
+      loopStartMillis: settings.selectedOverlayLoopStartMillis,
+      loopEndMillis: settings.selectedOverlayLoopEndMillis
     )
   }
 
@@ -226,4 +230,6 @@ struct OverlayMediaItem {
   let id: String
   let title: String
   let assetPath: String
+  let loopStartMillis: Int64
+  let loopEndMillis: Int64?
 }
