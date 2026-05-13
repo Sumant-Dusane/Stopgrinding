@@ -37,7 +37,8 @@ AGENT SHOULD STRICTLY FOLLOW `docs/AGENTS.md` AND THIS FILE. If any work conflic
   - Phase 10: Polish And Release Readiness
   - Phase 11: GIF Catalog And Contract Refresh
   - Phase 12: Native macOS Media Pipeline
-- Current phase: Phase 13: Transparent Settings And Comic Theme System
+  - Phase 13: Transparent Settings And Comic Theme System
+- Current phase: Phase 14: macOS Quick-Open Nudge And Settings UX Flow
 
 ## Phase Format
 Each phase must produce:
@@ -683,3 +684,11 @@ Replace the current mixed HTML/WebKit media rendering path with native macOS vid
 - Current bundled cat asset is `assets/overlays/neko_cat/output_small.mov`.
 - Current bundled cat loop metadata is `10.950s -> 18.850s`.
 - Full verification is still environment-dependent because local build/analyze commands may be blocked by sandboxed Flutter/Xcode cache writes or network-restricted Swift package resolution.
+
+Phase Complete:
+- phase: Phase 13: Transparent Settings And Comic Theme System
+- completed artifacts: introduced centralized theme entrypoints in `lib/app/theme/app_theme.dart` and `lib/app/theme/app_theme_tokens.dart`; rewrote the Flutter shell in `overlay_home_screen.dart` around shared semantic tokens; replaced the flat card stack with a transparent comic-style layout featuring a gradient canvas, glass panels, responsive hero panel, and token-driven control styling.
+- verification: `flutter analyze`; `flutter test`
+- blockers: no manual visual check was possible in this environment, so the new shell still needs an on-device pass for typography fallback and macOS translucency feel
+- decision changes: none
+- next phase entrypoint: add the lightweight macOS quick-open settings nudge and refine the settings entry flow without leaking shell behavior into the overlay runtime

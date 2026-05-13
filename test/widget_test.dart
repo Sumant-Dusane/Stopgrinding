@@ -40,12 +40,13 @@ void main() {
     await tester.pump();
 
     expect(find.text('StopGrinding'), findsOneWidget);
-    expect(find.textContaining('Lifecycle:'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Manual trigger'), findsOneWidget);
+    expect(find.text('Debug status'), findsOneWidget);
+    expect(find.text('Lifecycle'), findsOneWidget);
+    expect(find.text('Manual trigger'), findsOneWidget);
     expect(find.text('Startup'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Break video'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Save settings'), findsOneWidget);
+    expect(find.text('Save settings'), findsOneWidget);
   });
 }
 

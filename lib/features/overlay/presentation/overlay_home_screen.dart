@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart' hide OverlayState;
 
+import 'package:stopgrinding/app/theme/app_theme_tokens.dart';
 import 'package:stopgrinding/features/overlay/domain/dismiss_overlay.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_flow_state.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_service.dart';
@@ -42,129 +45,196 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('StopGrinding')),
-      body: AnimatedBuilder(
-        animation: Listenable.merge(<Listenable>[
-          widget.overlayService,
-          widget.launchAtStartupService,
-        ]),
-        builder: (context, _) {
-          final OverlayFlowState state = widget.overlayService.state;
-          final LaunchAtStartupService startup = widget.launchAtStartupService;
-          _syncDraftIfNeeded(state.settings);
-          final OverlaySettings settings = _draftSettings ?? state.settings;
-          final List<OverlayCatalogItem> catalog = state.catalog;
+    final AppThemeTokens tokens = Theme.of(
+      context,
+    ).extension<AppThemeTokens>()!;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _DebugPanel(state: state, startup: startup, catalog: catalog),
-                const SizedBox(height: 24),
-                _ActionsRow(
-                  state: state,
-                  onShowOverlay: () {
-                    widget.showOverlay();
-                  },
-                  onDismissOverlay: () {
-                    widget.dismissOverlay(
-                      reason: OverlayDismissReason.hiddenByApp,
-                    );
-                  },
-                  onRefreshDisplays: widget.overlayService.refreshDisplays,
-                  onRecover: widget.overlayService.recover,
-                  onPause: widget.overlayService.pause,
-                  onResume: widget.overlayService.resume,
-                ),
-                const SizedBox(height: 24),
-                _StartupPanel(
-                  startup: startup,
-                  onChanged: (enabled) {
-                    widget.launchAtStartupService.setEnabled(enabled);
-                  },
-                ),
-                const SizedBox(height: 24),
-                _SettingsPanel(
-                  settings: settings,
-                  catalog: catalog,
-                  isSaving: _isSaving,
-                  onIntervalChanged: (minutes) {
-                    _updateDraft(
-                      settings.copyWith(
-                        schedule: OverlaySchedule(
-                          interval: Duration(minutes: minutes),
-                          startImmediately: settings.schedule.startImmediately,
-                        ),
-                      ),
-                    );
-                  },
-                  onDurationChanged: (minutes) {
-                    _updateDraft(
-                      settings.copyWith(
-                        duration: OverlayDuration(Duration(minutes: minutes)),
-                      ),
-                    );
-                  },
-                  onInteractionModeChanged: (value) {
-                    _updateDraft(
-                      settings
-                          .copyWith(interactionMode: value)
-                          .normalized(catalog),
-                    );
-                  },
-                  onFullscreenModeChanged: (value) {
-                    _updateDraft(settings.copyWith(fullscreenMode: value));
-                  },
-                  onOverlayChanged: (value) {
-                    OverlayCatalogItem? selectedItem;
-                    for (final OverlayCatalogItem item in catalog) {
-                      if (item.id == value) {
-                        selectedItem = item;
-                        break;
-                      }
-                    }
-                    _updateDraft(
-                      settings.copyWith(
-                        selectedOverlayId: value,
-                        selectedOverlayAssetPath:
-                            selectedItem?.assetPath ??
-                            settings.selectedOverlayAssetPath,
-                      ),
-                    );
-                  },
-                  onDismissPolicyTypeChanged: (value) {
-                    _updateDraft(
-                      settings.copyWith(
-                        dismissPolicy: DismissPolicy(
-                          type: value,
-                          allowEarlyDismiss:
-                              value == DismissPolicyType.timedOnly
-                              ? false
-                              : settings.dismissPolicy.allowEarlyDismiss,
-                        ),
-                      ),
-                    );
-                  },
-                  onAllowEarlyDismissChanged: (value) {
-                    _updateDraft(
-                      settings
-                          .copyWith(
-                            dismissPolicy: DismissPolicy(
-                              type: settings.dismissPolicy.type,
-                              allowEarlyDismiss: value,
+    return Scaffold(
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: tokens.canvasGradient,
+          ),
+        ),
+        child: Stack(
+          children: [
+            const _BackdropDoodles(),
+            SafeArea(
+              child: AnimatedBuilder(
+                animation: Listenable.merge(<Listenable>[
+                  widget.overlayService,
+                  widget.launchAtStartupService,
+                ]),
+                builder: (context, _) {
+                  final OverlayFlowState state = widget.overlayService.state;
+                  final LaunchAtStartupService startup =
+                      widget.launchAtStartupService;
+                  _syncDraftIfNeeded(state.settings);
+                  final OverlaySettings settings =
+                      _draftSettings ?? state.settings;
+                  final List<OverlayCatalogItem> catalog = state.catalog;
+
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final bool useTwoColumns = constraints.maxWidth >= 1080;
+                      final double horizontalPadding =
+                          constraints.maxWidth >= 900 ? 34 : 20;
+                      final double topSpacing = constraints.maxWidth >= 900
+                          ? 26
+                          : 16;
+
+                      final Widget primaryColumn = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _HeroBanner(
+                            state: state,
+                            catalog: catalog,
+                            onShowOverlay: () {
+                              widget.showOverlay();
+                            },
+                            onDismissOverlay: () {
+                              widget.dismissOverlay(
+                                reason: OverlayDismissReason.hiddenByApp,
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                          _ActionsPanel(
+                            state: state,
+                            onRefreshDisplays:
+                                widget.overlayService.refreshDisplays,
+                            onRecover: widget.overlayService.recover,
+                            onPause: widget.overlayService.pause,
+                            onResume: widget.overlayService.resume,
+                          ),
+                          const SizedBox(height: 18),
+                          _StartupPanel(
+                            startup: startup,
+                            onChanged: (enabled) {
+                              widget.launchAtStartupService.setEnabled(enabled);
+                            },
+                          ),
+                        ],
+                      );
+
+                      final Widget secondaryColumn = _SettingsPanel(
+                        settings: settings,
+                        catalog: catalog,
+                        isSaving: _isSaving,
+                        onIntervalChanged: (minutes) {
+                          _updateDraft(
+                            settings.copyWith(
+                              schedule: OverlaySchedule(
+                                interval: Duration(minutes: minutes),
+                                startImmediately:
+                                    settings.schedule.startImmediately,
+                              ),
                             ),
-                          )
-                          .normalized(catalog),
-                    );
-                  },
-                  onSave: () => _saveSettings(settings, catalog),
-                ),
-              ],
+                          );
+                        },
+                        onDurationChanged: (minutes) {
+                          _updateDraft(
+                            settings.copyWith(
+                              duration: OverlayDuration(
+                                Duration(minutes: minutes),
+                              ),
+                            ),
+                          );
+                        },
+                        onInteractionModeChanged: (value) {
+                          _updateDraft(
+                            settings
+                                .copyWith(interactionMode: value)
+                                .normalized(catalog),
+                          );
+                        },
+                        onFullscreenModeChanged: (value) {
+                          _updateDraft(
+                            settings.copyWith(fullscreenMode: value),
+                          );
+                        },
+                        onOverlayChanged: (value) {
+                          OverlayCatalogItem? selectedItem;
+                          for (final OverlayCatalogItem item in catalog) {
+                            if (item.id == value) {
+                              selectedItem = item;
+                              break;
+                            }
+                          }
+                          _updateDraft(
+                            settings.copyWith(
+                              selectedOverlayId: value,
+                              selectedOverlayAssetPath:
+                                  selectedItem?.assetPath ??
+                                  settings.selectedOverlayAssetPath,
+                            ),
+                          );
+                        },
+                        onDismissPolicyTypeChanged: (value) {
+                          _updateDraft(
+                            settings.copyWith(
+                              dismissPolicy: DismissPolicy(
+                                type: value,
+                                allowEarlyDismiss:
+                                    value == DismissPolicyType.timedOnly
+                                    ? false
+                                    : settings.dismissPolicy.allowEarlyDismiss,
+                              ),
+                            ),
+                          );
+                        },
+                        onAllowEarlyDismissChanged: (value) {
+                          _updateDraft(
+                            settings
+                                .copyWith(
+                                  dismissPolicy: DismissPolicy(
+                                    type: settings.dismissPolicy.type,
+                                    allowEarlyDismiss: value,
+                                  ),
+                                )
+                                .normalized(catalog),
+                          );
+                        },
+                        onSave: () => _saveSettings(settings, catalog),
+                      );
+
+                      return SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalPadding,
+                          topSpacing,
+                          horizontalPadding,
+                          28,
+                        ),
+                        child: Column(
+                          children: [
+                            _TopChrome(state: state),
+                            const SizedBox(height: 18),
+                            if (useTwoColumns)
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(flex: 8, child: primaryColumn),
+                                  const SizedBox(width: 18),
+                                  Expanded(flex: 9, child: secondaryColumn),
+                                ],
+                              )
+                            else ...[
+                              primaryColumn,
+                              const SizedBox(height: 18),
+                              secondaryColumn,
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
@@ -220,75 +290,257 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
   }
 }
 
-class _DebugPanel extends StatelessWidget {
-  const _DebugPanel({
-    required this.state,
-    required this.startup,
-    required this.catalog,
-  });
+class _TopChrome extends StatelessWidget {
+  const _TopChrome({required this.state});
 
   final OverlayFlowState state;
-  final LaunchAtStartupService startup;
-  final List<OverlayCatalogItem> catalog;
 
   @override
   Widget build(BuildContext context) {
-    final OverlaySettings settings = state.settings;
-    final OverlayResult? result = state.lastResult;
+    final AppThemeTokens tokens = Theme.of(
+      context,
+    ).extension<AppThemeTokens>()!;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      runSpacing: 10,
+      spacing: 10,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: _badgeDecoration(tokens),
+          child: Text(
+            'StopGrinding',
+            style: textTheme.titleMedium?.copyWith(fontSize: 15),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: _badgeDecoration(tokens),
+          child: Text(
+            state.lifecycle == OverlayState.paused
+                ? 'Scheduler paused'
+                : 'Scheduler armed',
+            style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroBanner extends StatelessWidget {
+  const _HeroBanner({
+    required this.state,
+    required this.catalog,
+    required this.onShowOverlay,
+    required this.onDismissOverlay,
+  });
+
+  final OverlayFlowState state;
+  final List<OverlayCatalogItem> catalog;
+  final VoidCallback onShowOverlay;
+  final VoidCallback onDismissOverlay;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeTokens tokens = Theme.of(
+      context,
+    ).extension<AppThemeTokens>()!;
+    final TextTheme textTheme = Theme.of(context).textTheme;
     final OverlayCatalogItem? selectedItem = catalog.isEmpty
         ? null
-        : settings.selectedCatalogItem(catalog);
+        : state.settings.selectedCatalogItem(catalog);
+    final OverlayResult? result = state.lastResult;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool stacked = constraints.maxWidth < 700;
+
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: tokens.heroGradient,
+            ),
+            borderRadius: BorderRadius.circular(tokens.radiusLarge),
+            border: Border.all(color: tokens.panelStroke, width: 2.2),
+            boxShadow: [
+              BoxShadow(
+                color: tokens.panelShadow,
+                blurRadius: 24,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (stacked)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _HeroBannerCopy(textTheme: textTheme, tokens: tokens),
+                    const SizedBox(height: 18),
+                    _HeroSticker(
+                      title: selectedItem?.title ?? 'Loading clip',
+                      extensionLabel: selectedItem == null
+                          ? '...'
+                          : _assetExtensionLabel(selectedItem.assetPath),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _HeroBannerCopy(
+                        textTheme: textTheme,
+                        tokens: tokens,
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    _HeroSticker(
+                      title: selectedItem?.title ?? 'Loading clip',
+                      extensionLabel: selectedItem == null
+                          ? '...'
+                          : _assetExtensionLabel(selectedItem.assetPath),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 22),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _MetricChip(
+                    label: 'Next break',
+                    value:
+                        _formatDateTime(state.nextTriggerAt) ?? 'unscheduled',
+                  ),
+                  _MetricChip(
+                    label: 'Cadence',
+                    value:
+                        '${state.settings.duration.value.inMinutes}m / ${state.settings.schedule.interval.inMinutes}m',
+                  ),
+                  _MetricChip(
+                    label: 'Last result',
+                    value: _resultSummary(result) ?? 'waiting',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  FilledButton.icon(
+                    onPressed: onShowOverlay,
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Manual trigger'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onDismissOverlay,
+                    icon: const Icon(Icons.stop_circle_outlined),
+                    label: const Text('Dismiss overlay'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HeroBannerCopy extends StatelessWidget {
+  const _HeroBannerCopy({required this.textTheme, required this.tokens});
+
+  final TextTheme textTheme;
+  final AppThemeTokens tokens;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: tokens.chrome.withValues(alpha: 0.88),
+            borderRadius: BorderRadius.circular(tokens.radiusSmall),
+            border: Border.all(color: tokens.panelStroke, width: 1.4),
+          ),
+          child: Text(
+            'Break overlay control room',
+            style: textTheme.labelLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Text(
+          'Make the interruption feel loud, funny, and impossible to ignore.',
+          style: textTheme.displaySmall?.copyWith(color: Colors.white),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Tune the cadence, pick the cat clip, and keep the overlay behavior readable without burying the controls in a flat settings slab.',
+          style: textTheme.bodyLarge?.copyWith(
+            color: Colors.white.withValues(alpha: 0.92),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroSticker extends StatelessWidget {
+  const _HeroSticker({required this.title, required this.extensionLabel});
+
+  final String title;
+  final String extensionLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeTokens tokens = Theme.of(
+      context,
+    ).extension<AppThemeTokens>()!;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Transform.rotate(
+      angle: -0.055,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 180),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: tokens.chrome,
+          borderRadius: BorderRadius.circular(tokens.radiusMedium),
+          border: Border.all(color: tokens.panelStroke, width: 2),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Debug status',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
-            Text('Lifecycle: ${state.lifecycle.name}'),
-            const SizedBox(height: 8),
-            Text(
-              'Next trigger: ${_formatDateTime(state.nextTriggerAt) ?? 'unscheduled'}',
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Current cadence: ${settings.duration.value.inMinutes}m every ${settings.schedule.interval.inMinutes}m',
-            ),
-            const SizedBox(height: 8),
-            Text('Selected video: ${selectedItem?.title ?? 'loading catalog'}'),
-            const SizedBox(height: 8),
-            Text(
-              'Last overlay result: ${_resultSummary(result) ?? 'No completed session yet'}',
-            ),
-            if (result != null) ...[
-              const SizedBox(height: 8),
-              Text('Last result time: ${_formatDateTime(result.occurredAt)}'),
-            ],
-            const SizedBox(height: 8),
-            Text('Displays: ${state.displays.length}'),
-            const SizedBox(height: 8),
-            Text(
-              'Launch at login: ${startup.isInitialized ? (startup.isEnabled ? 'enabled' : 'disabled') : 'loading'}',
-            ),
-            if (state.lastError != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Last overlay error: ${state.lastError}',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              'NOW LOADED',
+              style: textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).colorScheme.secondary,
               ),
-            ],
-            if (startup.lastError != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Launch-at-login error: ${startup.lastError}',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            const SizedBox(height: 10),
+            Text(title, style: textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              extensionLabel,
+              style: textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -296,11 +548,9 @@ class _DebugPanel extends StatelessWidget {
   }
 }
 
-class _ActionsRow extends StatelessWidget {
-  const _ActionsRow({
+class _ActionsPanel extends StatelessWidget {
+  const _ActionsPanel({
     required this.state,
-    required this.onShowOverlay,
-    required this.onDismissOverlay,
     required this.onRefreshDisplays,
     required this.onRecover,
     required this.onPause,
@@ -308,8 +558,6 @@ class _ActionsRow extends StatelessWidget {
   });
 
   final OverlayFlowState state;
-  final VoidCallback onShowOverlay;
-  final VoidCallback onDismissOverlay;
   final Future<void> Function() onRefreshDisplays;
   final Future<void> Function() onRecover;
   final Future<void> Function() onPause;
@@ -317,34 +565,67 @@ class _ActionsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        FilledButton(
-          onPressed: onShowOverlay,
-          child: const Text('Manual trigger'),
-        ),
-        OutlinedButton(
-          onPressed: onDismissOverlay,
-          child: const Text('Dismiss overlay'),
-        ),
-        TextButton(
-          onPressed: onRefreshDisplays,
-          child: const Text('Refresh displays'),
-        ),
-        TextButton(onPressed: onRecover, child: const Text('Run recovery')),
-        TextButton(
-          onPressed: state.lifecycle == OverlayState.paused
-              ? onResume
-              : onPause,
-          child: Text(
-            state.lifecycle == OverlayState.paused
-                ? 'Resume schedule'
-                : 'Pause schedule',
+    return _GlassPanel(
+      title: 'Debug status',
+      eyebrow: 'Runtime',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _StatusPill(
+                label: 'Lifecycle',
+                value: state.lifecycle.name,
+                tone: state.lifecycle == OverlayState.visible
+                    ? _StatusTone.success
+                    : _StatusTone.neutral,
+              ),
+              _StatusPill(
+                label: 'Displays',
+                value: state.displays.length.toString(),
+              ),
+              _StatusPill(
+                label: 'Session result',
+                value: state.lastResult?.type.name ?? 'none',
+              ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              TextButton(
+                onPressed: onRefreshDisplays,
+                child: const Text('Refresh displays'),
+              ),
+              TextButton(
+                onPressed: onRecover,
+                child: const Text('Run recovery'),
+              ),
+              TextButton(
+                onPressed: state.lifecycle == OverlayState.paused
+                    ? onResume
+                    : onPause,
+                child: Text(
+                  state.lifecycle == OverlayState.paused
+                      ? 'Resume schedule'
+                      : 'Pause schedule',
+                ),
+              ),
+            ],
+          ),
+          if (state.lastError != null) ...[
+            const SizedBox(height: 14),
+            _NoticeStrip(
+              tone: _StatusTone.warn,
+              message: 'Last overlay error: ${state.lastError}',
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -357,27 +638,28 @@ class _StartupPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Startup', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: startup.isEnabled,
-              onChanged: startup.isLoading ? null : onChanged,
-              title: const Text('Launch at login'),
-              subtitle: Text(
-                startup.isLoading
-                    ? 'Updating startup setting...'
-                    : 'Start StopGrinding automatically when you log in.',
-              ),
+    return _GlassPanel(
+      title: 'Startup',
+      eyebrow: 'macOS',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ToggleRow(
+            title: 'Launch at login',
+            subtitle: startup.isLoading
+                ? 'Updating startup setting...'
+                : 'Start StopGrinding automatically when you log in.',
+            value: startup.isEnabled,
+            onChanged: startup.isLoading ? null : onChanged,
+          ),
+          if (startup.lastError != null) ...[
+            const SizedBox(height: 14),
+            _NoticeStrip(
+              tone: _StatusTone.warn,
+              message: 'Launch-at-login error: ${startup.lastError}',
             ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -416,161 +698,486 @@ class _SettingsPanel extends StatelessWidget {
         settings.dismissPolicy.type != DismissPolicyType.timedOnly &&
         settings.interactionMode == InteractionMode.blocking;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Settings', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            if (catalog.isEmpty)
-              const Text('Overlay video catalog is loading...')
-            else
-              DropdownButtonFormField<String>(
-                key: ValueKey('overlay-${settings.selectedOverlayId}'),
-                value: settings.selectedCatalogItem(catalog).id,
-                decoration: const InputDecoration(labelText: 'Break video'),
-                items: catalog
+    return _GlassPanel(
+      title: 'Settings',
+      eyebrow: 'Control surface',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Transparent enough to feel light, structured enough to avoid accidental chaos.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 18),
+          if (catalog.isEmpty)
+            const Text('Overlay video catalog is loading...')
+          else
+            DropdownButtonFormField<String>(
+              key: ValueKey('overlay-${settings.selectedOverlayId}'),
+              isExpanded: true,
+              value: settings.selectedCatalogItem(catalog).id,
+              decoration: const InputDecoration(labelText: 'Break video'),
+              items: catalog
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item.id,
+                      child: Text(
+                        '${item.title} (${_assetExtensionLabel(item.assetPath)})',
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) {
+                if (value != null) {
+                  onOverlayChanged(value);
+                }
+              },
+            ),
+          const SizedBox(height: 16),
+          _SettingGrid(
+            children: [
+              DropdownButtonFormField<int>(
+                key: ValueKey(
+                  'interval-${settings.schedule.interval.inMinutes}',
+                ),
+                isExpanded: true,
+                value: settings.schedule.interval.inMinutes,
+                decoration: const InputDecoration(labelText: 'Break interval'),
+                items: _intervalOptions
                     .map(
-                      (item) => DropdownMenuItem<String>(
-                        value: item.id,
-                        child: Text(
-                          '${item.title} (${_assetExtensionLabel(item.assetPath)})',
-                        ),
+                      (minutes) => DropdownMenuItem<int>(
+                        value: minutes,
+                        child: Text('$minutes minutes'),
                       ),
                     )
                     .toList(growable: false),
                 onChanged: (value) {
                   if (value != null) {
-                    onOverlayChanged(value);
+                    onIntervalChanged(value);
                   }
                 },
               ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<int>(
-              key: ValueKey('interval-${settings.schedule.interval.inMinutes}'),
-              value: settings.schedule.interval.inMinutes,
-              decoration: const InputDecoration(labelText: 'Break interval'),
-              items: _intervalOptions
-                  .map(
-                    (minutes) => DropdownMenuItem<int>(
-                      value: minutes,
-                      child: Text('$minutes minutes'),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: (value) {
-                if (value != null) {
-                  onIntervalChanged(value);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<int>(
-              key: ValueKey('duration-${settings.duration.value.inMinutes}'),
-              value: settings.duration.value.inMinutes,
-              decoration: const InputDecoration(labelText: 'Overlay duration'),
-              items: _durationOptions
-                  .map(
-                    (minutes) => DropdownMenuItem<int>(
-                      value: minutes,
-                      child: Text('$minutes minutes'),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: (value) {
-                if (value != null) {
-                  onDurationChanged(value);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<InteractionMode>(
-              key: ValueKey('interaction-${settings.interactionMode.name}'),
-              value: settings.interactionMode,
-              decoration: const InputDecoration(labelText: 'Interaction mode'),
-              items: InteractionMode.values
-                  .map(
-                    (mode) => DropdownMenuItem<InteractionMode>(
-                      value: mode,
-                      child: Text(_interactionModeLabel(mode)),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: (value) {
-                if (value != null) {
-                  onInteractionModeChanged(value);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<FullscreenMode>(
-              key: ValueKey('fullscreen-${settings.fullscreenMode.name}'),
-              value: settings.fullscreenMode,
-              decoration: const InputDecoration(
-                labelText: 'Fullscreen behavior',
+              DropdownButtonFormField<int>(
+                key: ValueKey('duration-${settings.duration.value.inMinutes}'),
+                isExpanded: true,
+                value: settings.duration.value.inMinutes,
+                decoration: const InputDecoration(
+                  labelText: 'Overlay duration',
+                ),
+                items: _durationOptions
+                    .map(
+                      (minutes) => DropdownMenuItem<int>(
+                        value: minutes,
+                        child: Text('$minutes minutes'),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (value) {
+                  if (value != null) {
+                    onDurationChanged(value);
+                  }
+                },
               ),
-              items: FullscreenMode.values
-                  .map(
-                    (mode) => DropdownMenuItem<FullscreenMode>(
-                      value: mode,
-                      child: Text(_fullscreenModeLabel(mode)),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: (value) {
-                if (value != null) {
-                  onFullscreenModeChanged(value);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<DismissPolicyType>(
-              key: ValueKey('dismiss-${settings.dismissPolicy.type.name}'),
-              value: settings.dismissPolicy.type,
-              decoration: const InputDecoration(labelText: 'Dismiss policy'),
-              items: DismissPolicyType.values
-                  .map(
-                    (policy) => DropdownMenuItem<DismissPolicyType>(
-                      value: policy,
-                      child: Text(_dismissPolicyLabel(policy)),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: (value) {
-                if (value != null) {
-                  onDismissPolicyTypeChanged(value);
-                }
-              },
-            ),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value:
-                  settings.dismissPolicy.allowEarlyDismiss &&
-                  canUseEarlyDismiss,
-              onChanged: canUseEarlyDismiss ? onAllowEarlyDismissChanged : null,
-              title: const Text('Allow early dismiss'),
-              subtitle: Text(
-                canUseEarlyDismiss
-                    ? 'Double-click dismissal is enabled for the current policy.'
-                    : 'Requires blocking mode and a gesture-based dismiss policy.',
+              DropdownButtonFormField<InteractionMode>(
+                key: ValueKey('interaction-${settings.interactionMode.name}'),
+                isExpanded: true,
+                value: settings.interactionMode,
+                decoration: const InputDecoration(
+                  labelText: 'Interaction mode',
+                ),
+                items: InteractionMode.values
+                    .map(
+                      (mode) => DropdownMenuItem<InteractionMode>(
+                        value: mode,
+                        child: Text(_interactionModeLabel(mode)),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (value) {
+                  if (value != null) {
+                    onInteractionModeChanged(value);
+                  }
+                },
               ),
-            ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: FilledButton(
-                onPressed: isSaving ? null : onSave,
-                child: Text(isSaving ? 'Saving…' : 'Save settings'),
+              DropdownButtonFormField<FullscreenMode>(
+                key: ValueKey('fullscreen-${settings.fullscreenMode.name}'),
+                isExpanded: true,
+                value: settings.fullscreenMode,
+                decoration: const InputDecoration(
+                  labelText: 'Fullscreen behavior',
+                ),
+                items: FullscreenMode.values
+                    .map(
+                      (mode) => DropdownMenuItem<FullscreenMode>(
+                        value: mode,
+                        child: Text(_fullscreenModeLabel(mode)),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (value) {
+                  if (value != null) {
+                    onFullscreenModeChanged(value);
+                  }
+                },
               ),
+              DropdownButtonFormField<DismissPolicyType>(
+                key: ValueKey('dismiss-${settings.dismissPolicy.type.name}'),
+                isExpanded: true,
+                value: settings.dismissPolicy.type,
+                decoration: const InputDecoration(labelText: 'Dismiss policy'),
+                items: DismissPolicyType.values
+                    .map(
+                      (policy) => DropdownMenuItem<DismissPolicyType>(
+                        value: policy,
+                        child: Text(_dismissPolicyLabel(policy)),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (value) {
+                  if (value != null) {
+                    onDismissPolicyTypeChanged(value);
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _ToggleRow(
+            title: 'Allow early dismiss',
+            subtitle: canUseEarlyDismiss
+                ? 'Double-click dismissal is enabled for the current policy.'
+                : 'Requires blocking mode and a gesture-based dismiss policy.',
+            value:
+                settings.dismissPolicy.allowEarlyDismiss && canUseEarlyDismiss,
+            onChanged: canUseEarlyDismiss ? onAllowEarlyDismissChanged : null,
+          ),
+          const SizedBox(height: 18),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              onPressed: isSaving ? null : onSave,
+              icon: Icon(isSaving ? Icons.hourglass_top_rounded : Icons.save),
+              label: Text(isSaving ? 'Saving…' : 'Save settings'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _SettingGrid extends StatelessWidget {
+  const _SettingGrid({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool useTwoColumns = constraints.maxWidth >= 520;
+        if (!useTwoColumns) {
+          return Column(
+            children: [
+              for (int index = 0; index < children.length; index++) ...[
+                children[index],
+                if (index != children.length - 1) const SizedBox(height: 16),
+              ],
+            ],
+          );
+        }
+
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: children
+              .map(
+                (child) => SizedBox(
+                  width: math.max(220, (constraints.maxWidth - 16) / 2),
+                  child: child,
+                ),
+              )
+              .toList(growable: false),
+        );
+      },
+    );
+  }
+}
+
+class _GlassPanel extends StatelessWidget {
+  const _GlassPanel({required this.title, required this.child, this.eyebrow});
+
+  final String title;
+  final String? eyebrow;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeTokens tokens = Theme.of(
+      context,
+    ).extension<AppThemeTokens>()!;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: tokens.panelBackground,
+        borderRadius: BorderRadius.circular(tokens.radiusLarge),
+        border: Border.all(color: tokens.panelStroke, width: 1.8),
+        boxShadow: [
+          BoxShadow(
+            color: tokens.panelShadow,
+            blurRadius: 20,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (eyebrow != null) ...[
+            Text(
+              eyebrow!,
+              style: textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).colorScheme.secondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Text(title, style: textTheme.headlineSmall),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricChip extends StatelessWidget {
+  const _MetricChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: textTheme.labelLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: textTheme.bodyLarge?.copyWith(color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _StatusTone { neutral, success, warn }
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({
+    required this.label,
+    required this.value,
+    this.tone = _StatusTone.neutral,
+  });
+
+  final String label;
+  final String value;
+  final _StatusTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeTokens tokens = Theme.of(
+      context,
+    ).extension<AppThemeTokens>()!;
+    final Color background;
+
+    switch (tone) {
+      case _StatusTone.neutral:
+        background = tokens.chrome.withValues(alpha: 0.9);
+      case _StatusTone.success:
+        background = tokens.success.withValues(alpha: 0.45);
+      case _StatusTone.warn:
+        background = tokens.warn.withValues(alpha: 0.18);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+        border: Border.all(color: tokens.panelStroke, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 4),
+          Text(value, style: Theme.of(context).textTheme.bodyLarge),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeTokens tokens = Theme.of(
+      context,
+    ).extension<AppThemeTokens>()!;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.46),
+        borderRadius: BorderRadius.circular(tokens.radiusMedium),
+        border: Border.all(color: tokens.panelStroke, width: 1.2),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Switch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoticeStrip extends StatelessWidget {
+  const _NoticeStrip({required this.tone, required this.message});
+
+  final _StatusTone tone;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeTokens tokens = Theme.of(
+      context,
+    ).extension<AppThemeTokens>()!;
+    final Color tint = tone == _StatusTone.warn ? tokens.warn : tokens.success;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(tokens.radiusSmall),
+        border: Border.all(color: tint, width: 1.2),
+      ),
+      child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
+    );
+  }
+}
+
+class _BackdropDoodles extends StatelessWidget {
+  const _BackdropDoodles();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeTokens tokens = Theme.of(
+      context,
+    ).extension<AppThemeTokens>()!;
+
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned(
+            top: -80,
+            right: -50,
+            child: _Blob(
+              size: 240,
+              color: tokens.accent.withValues(alpha: 0.22),
+            ),
+          ),
+          Positioned(
+            left: -40,
+            top: 120,
+            child: _Blob(
+              size: 160,
+              color: tokens.accentMuted.withValues(alpha: 0.18),
+            ),
+          ),
+          Positioned(
+            bottom: -60,
+            left: 80,
+            child: _Blob(
+              size: 220,
+              color: tokens.success.withValues(alpha: 0.16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Blob extends StatelessWidget {
+  const _Blob({required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(size * 0.42),
+      ),
+    );
+  }
+}
+
+BoxDecoration _badgeDecoration(AppThemeTokens tokens) {
+  return BoxDecoration(
+    color: tokens.chrome.withValues(alpha: 0.88),
+    borderRadius: BorderRadius.circular(tokens.radiusSmall),
+    border: Border.all(color: tokens.panelStroke, width: 1.4),
+  );
 }
 
 String _assetExtensionLabel(String assetPath) {
@@ -579,7 +1186,7 @@ String _assetExtensionLabel(String assetPath) {
   return extension.isEmpty ? 'asset' : extension.toUpperCase();
 }
 
-const List<int> _intervalOptions = <int>[15, 30, 45, 60, 90, 120];
+const List<int> _intervalOptions = <int>[1, 15, 30, 45, 60, 90, 120];
 const List<int> _durationOptions = <int>[1, 2, 3, 5, 10, 15];
 
 String _interactionModeLabel(InteractionMode mode) {
@@ -618,11 +1225,11 @@ String? _resultSummary(OverlayResult? result) {
 
   switch (result.type) {
     case OverlayResultType.shown:
-      return 'Overlay shown${result.sessionId == null ? '' : ' (${result.sessionId})'}';
+      return 'shown';
     case OverlayResultType.dismissed:
-      return 'Dismissed: ${result.dismissReason?.name ?? 'unknown'}';
+      return 'dismissed';
     case OverlayResultType.failed:
-      return 'Failed: ${result.message ?? 'unknown error'}';
+      return 'failed';
   }
 }
 
@@ -633,5 +1240,5 @@ String? _formatDateTime(DateTime? value) {
 
   String twoDigits(int part) => part.toString().padLeft(2, '0');
   return '${value.year}-${twoDigits(value.month)}-${twoDigits(value.day)} '
-      '${twoDigits(value.hour)}:${twoDigits(value.minute)}:${twoDigits(value.second)}';
+      '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
 }

@@ -85,6 +85,7 @@ private final class OverlayMediaView: NSView {
   private var playerLayer: AVPlayerLayer?
   private var player: AVPlayer?
   private var boundaryObserver: Any?
+  private var itemDidReachEndObserver: NSObjectProtocol?
   private var looper: AVPlayerLooper?
   private var sourceAssetURL: URL?
   private var playbackMode: PlaybackMode = .fullAsset
@@ -151,11 +152,14 @@ private final class OverlayMediaView: NSView {
   func stopPlayback() {
     player?.pause()
     player?.seek(to: .zero)
+    clearLoopObserver()
+    clearEndObserver()
     hasAnimatedIn = false
   }
 
   private func configurePlayer(for mode: PlaybackMode, assetURL: URL) {
     clearLoopObserver()
+    clearEndObserver()
     looper = nil
     if playerLayer == nil {
       let layer = AVPlayerLayer()
@@ -180,10 +184,11 @@ private final class OverlayMediaView: NSView {
       playerItem.forwardPlaybackEndTime = loopRange.end
       let player = AVPlayer(playerItem: playerItem)
       player.actionAtItemEnd = .pause
-      boundaryObserver = player.addBoundaryTimeObserver(
-        forTimes: [NSValue(time: loopRange.end)],
+      itemDidReachEndObserver = NotificationCenter.default.addObserver(
+        forName: .AVPlayerItemDidPlayToEndTime,
+        object: playerItem,
         queue: .main
-      ) { [weak self] in
+      ) { [weak self] _ in
         self?.startLoopPlayback(loopRange: loopRange)
       }
       nextPlayer = player
@@ -204,6 +209,13 @@ private final class OverlayMediaView: NSView {
     boundaryObserver = nil
   }
 
+  private func clearEndObserver() {
+    if let itemDidReachEndObserver {
+      NotificationCenter.default.removeObserver(itemDidReachEndObserver)
+    }
+    itemDidReachEndObserver = nil
+  }
+
   private func showPlaceholder(_ title: String) {
     player?.pause()
     player = nil
@@ -212,6 +224,7 @@ private final class OverlayMediaView: NSView {
     playbackMode = .fullAsset
     hasAnimatedIn = false
     clearLoopObserver()
+    clearEndObserver()
     playerLayer?.player = nil
     placeholderLabel.stringValue = "MISSING VIDEO\n\(title.uppercased())"
     placeholderLabel.isHidden = false
@@ -263,6 +276,7 @@ private final class OverlayMediaView: NSView {
     )
 
     clearLoopObserver()
+    clearEndObserver()
     let loopPlayer = makeLoopingPlayer(assetURL: sourceAssetURL, loopRange: loopRange)
     loopPlayer.play()
     player = loopPlayer

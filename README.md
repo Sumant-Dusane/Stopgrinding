@@ -4,7 +4,7 @@
 
 ## Current Status
 
-- Phases 1 through 12 in `docs/PLAYBOOK.md` are implemented for the macOS path.
+- Phases 1 through 13 in `docs/PLAYBOOK.md` are implemented for the macOS path.
 - Flutter owns scheduling, settings, and overlay orchestration.
 - Native AppKit owns per-display windows, animation hosting, interaction strategy, and dismiss behavior.
 - Windows remains an optional next phase behind the same typed Dart bridge.
