@@ -38,7 +38,8 @@ AGENT SHOULD STRICTLY FOLLOW `docs/AGENTS.md` AND THIS FILE. If any work conflic
   - Phase 11: GIF Catalog And Contract Refresh
   - Phase 12: Native macOS Media Pipeline
   - Phase 13: Transparent Settings And Comic Theme System
-- Current phase: Phase 14: macOS Quick-Open Nudge And Settings UX Flow
+  - Phase 14: macOS Quick-Open Nudge And Settings UX Flow
+- Current phase: Phase 15: Update Delivery And Media Content Expansion
 
 ## Phase Format
 Each phase must produce:
@@ -486,32 +487,34 @@ Revamp the app shell into a transparent comic-style experience with a maintainab
 
 ---
 
-## Phase 14: macOS Quick-Open Nudge And Settings UX Flow
+## Phase 14: macOS Menu Bar Entry And Settings Focus Flow
 ### Goal
-Add a lightweight macOS entrypoint that opens settings quickly without depending on the main screen layout.
+Add a persistent macOS menu bar entrypoint that can reopen the app window and route users into settings quickly.
 
 ### Scope
-- design and implement a small macOS top-chrome nudge above or alongside the title/app bar
-- clicking the nudge should reveal or focus the settings experience
+- show the app icon in the macOS menu bar via a tray/status-item integration
+- define the menu items from Flutter-side constants or strategy maps rather than hardcoding them only in native code
+- allow menu bar actions to reopen/focus the main app window
+- allow a menu bar action to jump directly into the settings control surface
 - keep this behavior in app-shell/macOS shell integration, not in overlay windows
-- refine settings navigation around the new media selector and transparent layout
-- ensure the quick-open affordance works consistently after launch-at-login and on repeated opens
+- ensure the menu bar affordance works consistently after launch-at-login and on repeated opens
 
 ### Deliverables
-- persistent quick-open settings affordance in the macOS shell
-- cleaner settings entry flow for day-to-day use
+- persistent menu bar icon for the app on macOS
+- Flutter-owned menu config for tray actions
+- cleaner settings-open flow for day-to-day use
 
 ### Verification
-- manual open/focus flow testing
+- manual menu bar open/focus flow testing
 - restart/login-item retest
 - no regression in overlay scheduling while settings are opened repeatedly
 
 ### Exit Criteria
-- users can reach settings quickly without hunting through the main app content
+- users can reopen the app and reach settings quickly from the macOS menu bar
 - shell entrypoint does not compromise existing architecture boundaries
 
 ### Handoff Note Template
-- nudge placement used
+- tray package / native strategy used
 - focus/open behavior
 - macOS-specific limitations
 
@@ -692,3 +695,11 @@ Phase Complete:
 - blockers: no manual visual check was possible in this environment, so the new shell still needs an on-device pass for typography fallback and macOS translucency feel
 - decision changes: none
 - next phase entrypoint: add the lightweight macOS quick-open settings nudge and refine the settings entry flow without leaking shell behavior into the overlay runtime
+
+Phase Complete:
+- phase: Phase 14: macOS Menu Bar Entry And Settings Focus Flow
+- completed artifacts: added a persistent macOS menu bar icon using `tray_manager`; introduced Flutter-owned tray item configuration and label resolution under `lib/app/shell/`; wired tray actions to reopen the main window, jump into settings, trigger a break, pause/resume scheduling, and quit; updated the in-window shell so settings-open requests can scroll and spotlight the settings control surface.
+- verification: `flutter analyze`; `flutter test`
+- blockers: no manual macOS menu bar runtime validation was possible in this environment, and fullscreen overlay behavior remains an explicitly unresolved native limitation
+- decision changes: none
+- next phase entrypoint: choose and integrate the app update path, then connect update messaging to the shipped media catalog story

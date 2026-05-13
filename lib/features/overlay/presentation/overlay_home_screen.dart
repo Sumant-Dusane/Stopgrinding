@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide OverlayState;
 
+import 'package:stopgrinding/app/shell/shell_navigation_controller.dart';
 import 'package:stopgrinding/app/theme/app_theme_tokens.dart';
 import 'package:stopgrinding/features/overlay/domain/dismiss_overlay.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_flow_state.dart';
@@ -14,6 +15,7 @@ import 'package:stopgrinding/features/settings/infrastructure/launch_at_startup_
 class OverlayHomeScreen extends StatefulWidget {
   const OverlayHomeScreen({
     super.key,
+    required this.shellNavigationController,
     required this.overlayService,
     required this.launchAtStartupService,
     required this.showOverlay,
@@ -21,6 +23,7 @@ class OverlayHomeScreen extends StatefulWidget {
     required this.saveSettings,
   });
 
+  final ShellNavigationController shellNavigationController;
   final OverlayService overlayService;
   final LaunchAtStartupService launchAtStartupService;
   final ShowOverlay showOverlay;
@@ -35,12 +38,24 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
   OverlaySettings? _draftSettings;
   OverlaySettings? _lastSyncedSettings;
   bool _isSaving = false;
+  bool _settingsSpotlightActive = false;
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _settingsPanelKey = GlobalKey();
+  int _lastShellRequestVersion = 0;
 
   @override
   void initState() {
     super.initState();
     widget.overlayService.initialize();
     widget.launchAtStartupService.initialize();
+    widget.shellNavigationController.addListener(_handleShellNavigation);
+  }
+
+  @override
+  void dispose() {
+    widget.shellNavigationController.removeListener(_handleShellNavigation);
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -120,9 +135,11 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
                       );
 
                       final Widget secondaryColumn = _SettingsPanel(
+                        key: _settingsPanelKey,
                         settings: settings,
                         catalog: catalog,
                         isSaving: _isSaving,
+                        isSpotlighted: _settingsSpotlightActive,
                         onIntervalChanged: (minutes) {
                           _updateDraft(
                             settings.copyWith(
@@ -201,6 +218,7 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
                       );
 
                       return SingleChildScrollView(
+                        controller: _scrollController,
                         padding: EdgeInsets.fromLTRB(
                           horizontalPadding,
                           topSpacing,
@@ -209,7 +227,11 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
                         ),
                         child: Column(
                           children: [
-                            _TopChrome(state: state),
+                            _TopChrome(
+                              state: state,
+                              onOpenSettings: _openSettingsDeck,
+                              onJumpToTop: _jumpToTop,
+                            ),
                             const SizedBox(height: 18),
                             if (useTwoColumns)
                               Row(
@@ -254,6 +276,59 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
     });
   }
 
+  Future<void> _openSettingsDeck() async {
+    setState(() {
+      _settingsSpotlightActive = true;
+    });
+
+    final BuildContext? targetContext = _settingsPanelKey.currentContext;
+    if (targetContext != null) {
+      await Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+        alignment: 0.08,
+      );
+    }
+
+    Future<void>.delayed(const Duration(milliseconds: 1500), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _settingsSpotlightActive = false;
+      });
+    });
+  }
+
+  Future<void> _jumpToTop() async {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    await _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _handleShellNavigation() {
+    final ShellNavigationController controller =
+        widget.shellNavigationController;
+    if (controller.requestVersion == _lastShellRequestVersion) {
+      return;
+    }
+    _lastShellRequestVersion = controller.requestVersion;
+
+    switch (controller.destination) {
+      case ShellDestination.home:
+        _jumpToTop();
+      case ShellDestination.settings:
+        _openSettingsDeck();
+    }
+  }
+
   Future<void> _saveSettings(
     OverlaySettings settings,
     List<OverlayCatalogItem> catalog,
@@ -291,9 +366,15 @@ class _OverlayHomeScreenState extends State<OverlayHomeScreen> {
 }
 
 class _TopChrome extends StatelessWidget {
-  const _TopChrome({required this.state});
+  const _TopChrome({
+    required this.state,
+    required this.onOpenSettings,
+    required this.onJumpToTop,
+  });
 
   final OverlayFlowState state;
+  final VoidCallback onOpenSettings;
+  final VoidCallback onJumpToTop;
 
   @override
   Widget build(BuildContext context) {
@@ -310,20 +391,40 @@ class _TopChrome extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: _badgeDecoration(tokens),
-          child: Text(
-            'StopGrinding',
-            style: textTheme.titleMedium?.copyWith(fontSize: 15),
+          child: InkWell(
+            onTap: onJumpToTop,
+            borderRadius: BorderRadius.circular(tokens.radiusSmall),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+              child: Text(
+                'StopGrinding',
+                style: textTheme.titleMedium?.copyWith(fontSize: 15),
+              ),
+            ),
           ),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: _badgeDecoration(tokens),
-          child: Text(
-            state.lifecycle == OverlayState.paused
-                ? 'Scheduler paused'
-                : 'Scheduler armed',
-            style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800),
-          ),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: _badgeDecoration(tokens),
+              child: Text(
+                state.lifecycle == OverlayState.paused
+                    ? 'Scheduler paused'
+                    : 'Scheduler armed',
+                style: textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: onOpenSettings,
+              icon: const Icon(Icons.tune_rounded),
+              label: const Text('Settings deck'),
+            ),
+          ],
         ),
       ],
     );
@@ -667,9 +768,11 @@ class _StartupPanel extends StatelessWidget {
 
 class _SettingsPanel extends StatelessWidget {
   const _SettingsPanel({
+    super.key,
     required this.settings,
     required this.catalog,
     required this.isSaving,
+    required this.isSpotlighted,
     required this.onIntervalChanged,
     required this.onDurationChanged,
     required this.onInteractionModeChanged,
@@ -683,6 +786,7 @@ class _SettingsPanel extends StatelessWidget {
   final OverlaySettings settings;
   final List<OverlayCatalogItem> catalog;
   final bool isSaving;
+  final bool isSpotlighted;
   final ValueChanged<int> onIntervalChanged;
   final ValueChanged<int> onDurationChanged;
   final ValueChanged<InteractionMode> onInteractionModeChanged;
@@ -701,6 +805,7 @@ class _SettingsPanel extends StatelessWidget {
     return _GlassPanel(
       title: 'Settings',
       eyebrow: 'Control surface',
+      isSpotlighted: isSpotlighted,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -905,11 +1010,17 @@ class _SettingGrid extends StatelessWidget {
 }
 
 class _GlassPanel extends StatelessWidget {
-  const _GlassPanel({required this.title, required this.child, this.eyebrow});
+  const _GlassPanel({
+    required this.title,
+    required this.child,
+    this.eyebrow,
+    this.isSpotlighted = false,
+  });
 
   final String title;
   final String? eyebrow;
   final Widget child;
+  final bool isSpotlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -918,16 +1029,25 @@ class _GlassPanel extends StatelessWidget {
     ).extension<AppThemeTokens>()!;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: tokens.panelBackground,
+        color: isSpotlighted
+            ? tokens.chrome.withValues(alpha: 0.94)
+            : tokens.panelBackground,
         borderRadius: BorderRadius.circular(tokens.radiusLarge),
-        border: Border.all(color: tokens.panelStroke, width: 1.8),
+        border: Border.all(
+          color: isSpotlighted ? tokens.accent : tokens.panelStroke,
+          width: isSpotlighted ? 2.6 : 1.8,
+        ),
         boxShadow: [
           BoxShadow(
-            color: tokens.panelShadow,
-            blurRadius: 20,
+            color: isSpotlighted
+                ? tokens.accent.withValues(alpha: 0.28)
+                : tokens.panelShadow,
+            blurRadius: isSpotlighted ? 30 : 20,
             offset: const Offset(0, 12),
           ),
         ],

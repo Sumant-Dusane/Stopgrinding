@@ -1,10 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:stopgrinding/app/app.dart';
 import 'package:stopgrinding/app/di.dart';
+import 'package:stopgrinding/app/shell/menu_bar_tray_service.dart';
+import 'package:stopgrinding/app/shell/shell_navigation_controller.dart';
+import 'package:stopgrinding/app/shell/shell_window_service.dart';
 import 'package:stopgrinding/features/overlay/domain/dismiss_overlay.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_controller.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_service.dart';
@@ -26,7 +28,16 @@ void main() {
       schedulerService: SchedulerService(scheduler: scheduler),
       settingsRepository: InMemoryOverlaySettingsRepository(),
     );
+    final ShellNavigationController shellNavigationController =
+        ShellNavigationController();
     final AppDi di = AppDi(
+      menuBarTrayService: MenuBarTrayService(
+        overlayService: overlayService,
+        showOverlay: ShowOverlay(overlayService),
+        shellNavigationController: shellNavigationController,
+        shellWindowService: ShellWindowService(),
+      ),
+      shellNavigationController: shellNavigationController,
       overlayService: overlayService,
       launchAtStartupService: LaunchAtStartupService(
         adapter: _FakeLaunchAtStartupAdapter(),

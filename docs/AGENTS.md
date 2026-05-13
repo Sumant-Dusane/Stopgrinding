@@ -15,7 +15,7 @@ AGENT SHOULD STRICTLY FOLLOW THIS MD FILE. If any planned code, architecture, na
 - Main app shell: `Flutter`.
 - Overlay engine: native per platform.
 - Settings surface should feel light and transparent rather than panel-heavy.
-- Main app shell should expose a small macOS top-chrome nudge that opens settings quickly.
+- The macOS shell should expose a persistent menu bar entrypoint that can reopen the app and jump into settings quickly.
 - Visual direction should be funny and comic-like, while remaining easy to retheme centrally.
 
 ## Locked Decisions

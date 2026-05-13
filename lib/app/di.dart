@@ -1,3 +1,6 @@
+import 'package:stopgrinding/app/shell/menu_bar_tray_service.dart';
+import 'package:stopgrinding/app/shell/shell_navigation_controller.dart';
+import 'package:stopgrinding/app/shell/shell_window_service.dart';
 import 'package:stopgrinding/features/overlay/domain/dismiss_overlay.dart';
 import 'package:stopgrinding/features/overlay/domain/overlay_service.dart';
 import 'package:stopgrinding/features/overlay/domain/show_overlay.dart';
@@ -10,6 +13,8 @@ import 'package:stopgrinding/platform/bridge/pigeon_overlay_bridge.dart';
 
 class AppDi {
   AppDi({
+    required this.menuBarTrayService,
+    required this.shellNavigationController,
     required this.overlayService,
     required this.launchAtStartupService,
     required this.showOverlay,
@@ -21,21 +26,35 @@ class AppDi {
     final overlayBridge = PigeonOverlayBridge();
     final schedulerService = SchedulerService(scheduler: TimerBreakScheduler());
     final launchAtStartupService = LaunchAtStartupService();
+    final shellNavigationController = ShellNavigationController();
+    final shellWindowService = ShellWindowService();
     final overlayService = OverlayService(
       controller: overlayBridge,
       schedulerService: schedulerService,
       settingsRepository: SharedPreferencesOverlaySettingsRepository(),
     );
+    final showOverlay = ShowOverlay(overlayService);
+    final dismissOverlay = DismissOverlay(overlayService);
+    final saveSettings = SaveSettings(overlayService);
 
     return AppDi(
+      menuBarTrayService: MenuBarTrayService(
+        overlayService: overlayService,
+        showOverlay: showOverlay,
+        shellNavigationController: shellNavigationController,
+        shellWindowService: shellWindowService,
+      ),
+      shellNavigationController: shellNavigationController,
       overlayService: overlayService,
       launchAtStartupService: launchAtStartupService,
-      showOverlay: ShowOverlay(overlayService),
-      dismissOverlay: DismissOverlay(overlayService),
-      saveSettings: SaveSettings(overlayService),
+      showOverlay: showOverlay,
+      dismissOverlay: dismissOverlay,
+      saveSettings: saveSettings,
     );
   }
 
+  final MenuBarTrayService menuBarTrayService;
+  final ShellNavigationController shellNavigationController;
   final OverlayService overlayService;
   final LaunchAtStartupService launchAtStartupService;
   final ShowOverlay showOverlay;

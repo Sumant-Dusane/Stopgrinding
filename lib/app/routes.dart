@@ -10,6 +10,7 @@ abstract final class AppRoute {
 Map<String, WidgetBuilder> appRoutes(AppDi di) {
   return {
     AppRoute.home: (_) => OverlayHomeScreen(
+      shellNavigationController: di.shellNavigationController,
       overlayService: di.overlayService,
       launchAtStartupService: di.launchAtStartupService,
       showOverlay: di.showOverlay,

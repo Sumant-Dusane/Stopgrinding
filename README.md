@@ -4,9 +4,10 @@
 
 ## Current Status
 
-- Phases 1 through 13 in `docs/PLAYBOOK.md` are implemented for the macOS path.
+- Phases 1 through 14 in `docs/PLAYBOOK.md` are implemented for the macOS path.
 - Flutter owns scheduling, settings, and overlay orchestration.
 - Native AppKit owns per-display windows, animation hosting, interaction strategy, and dismiss behavior.
+- The macOS shell now includes a menu bar entrypoint for reopening the app and jumping to settings.
 - Windows remains an optional next phase behind the same typed Dart bridge.
 
 ## Docs
@@ -69,4 +70,5 @@ assets/
 - To keep the desktop visible behind the subject, the source video itself must include transparency, such as an alpha-capable HEVC `.mov`.
 - The current macOS overlay renderer presents the media as a padded card anchored to the bottom-right of each display, with a right-to-left slide-in on show.
 - Looping is configured from the Dart catalog's `loopStart` and `loopEnd`, and the native renderer treats that range as the steady-state loop segment after any non-looping intro.
+- Known limitation: the `Show above fullscreen apps` setting is not yet reliable for true macOS fullscreen Spaces and is currently treated as unresolved native behavior.
 - If a supported media file is missing, the native overlay falls back to a neutral placeholder card instead of a cat-specific asset.
