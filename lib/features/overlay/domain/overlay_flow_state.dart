@@ -6,6 +6,7 @@ class OverlayFlowState {
     required this.settings,
     this.catalog = const <OverlayCatalogItem>[],
     this.activeSession,
+    this.visibleUntil,
     this.nextTriggerAt,
     this.displays = const <DisplayTarget>[],
     this.lastResult,
@@ -27,6 +28,7 @@ class OverlayFlowState {
   final OverlaySettings settings;
   final List<OverlayCatalogItem> catalog;
   final OverlaySession? activeSession;
+  final DateTime? visibleUntil;
   final DateTime? nextTriggerAt;
   final List<DisplayTarget> displays;
   final OverlayResult? lastResult;
@@ -43,6 +45,7 @@ class OverlayFlowState {
     OverlaySettings? settings,
     List<OverlayCatalogItem>? catalog,
     Object? activeSession = _sentinel,
+    Object? visibleUntil = _sentinel,
     Object? nextTriggerAt = _sentinel,
     List<DisplayTarget>? displays,
     Object? lastResult = _sentinel,
@@ -58,6 +61,9 @@ class OverlayFlowState {
       activeSession: identical(activeSession, _sentinel)
           ? this.activeSession
           : activeSession as OverlaySession?,
+      visibleUntil: identical(visibleUntil, _sentinel)
+          ? this.visibleUntil
+          : visibleUntil as DateTime?,
       nextTriggerAt: identical(nextTriggerAt, _sentinel)
           ? this.nextTriggerAt
           : nextTriggerAt as DateTime?,

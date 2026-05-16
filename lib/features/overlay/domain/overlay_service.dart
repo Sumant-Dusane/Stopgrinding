@@ -76,6 +76,7 @@ class OverlayService extends ChangeNotifier {
         _transitionTo(
           OverlayState.visible,
           activeSession: status.activeSession,
+          visibleUntil: _visibleUntilForSession(status.activeSession!),
           nextTriggerAt: null,
         );
         return;
@@ -175,6 +176,7 @@ class OverlayService extends ChangeNotifier {
           OverlayState.visible,
           activeSession: status.activeSession,
           displays: status.activeSession?.displayTargets ?? _state.displays,
+          visibleUntil: _visibleUntilForSession(status.activeSession!),
           nextTriggerAt: null,
           lastError: null,
         );
@@ -207,7 +209,11 @@ class OverlayService extends ChangeNotifier {
   }
 
   Future<void> _triggerOverlay({DateTime? triggeredAt}) async {
-    _transitionTo(OverlayState.preparing, nextTriggerAt: null);
+    _transitionTo(
+      OverlayState.preparing,
+      visibleUntil: null,
+      nextTriggerAt: null,
+    );
     await _controller.showOverlay(_state.settings);
     _updateState(_state.copyWith(lastUpdatedAt: triggeredAt ?? DateTime.now()));
   }
@@ -218,6 +224,7 @@ class OverlayService extends ChangeNotifier {
       OverlayState.scheduled,
       nextTriggerAt: _schedulerService.nextTriggerAt,
       activeSession: null,
+      visibleUntil: null,
       lastDismissReason: null,
     );
   }
@@ -235,15 +242,17 @@ class OverlayService extends ChangeNotifier {
 
     switch (event.type) {
       case OverlayEventType.shown:
+        final OverlaySession? session = event.session;
         _transitionTo(
           OverlayState.visible,
-          activeSession: event.session,
-          displays: event.session?.displayTargets ?? _state.displays,
+          activeSession: session,
+          displays: session?.displayTargets ?? _state.displays,
+          visibleUntil: _visibleUntilForShownEvent(event, session),
           nextTriggerAt: null,
           lastResult: OverlayResult(
             type: OverlayResultType.shown,
             occurredAt: event.occurredAt ?? DateTime.now(),
-            sessionId: event.session?.id,
+            sessionId: session?.id,
           ),
           lastError: null,
         );
@@ -271,6 +280,7 @@ class OverlayService extends ChangeNotifier {
     _transitionTo(
       OverlayState.dismissed,
       activeSession: null,
+      visibleUntil: null,
       nextTriggerAt: null,
       lastResult: OverlayResult(
         type: OverlayResultType.dismissed,
@@ -286,6 +296,7 @@ class OverlayService extends ChangeNotifier {
   void _transitionTo(
     OverlayState lifecycle, {
     OverlaySession? activeSession,
+    Object? visibleUntil = _stateSentinel,
     DateTime? nextTriggerAt,
     List<DisplayTarget>? displays,
     Object? lastResult = _stateSentinel,
@@ -296,6 +307,9 @@ class OverlayService extends ChangeNotifier {
       _state.copyWith(
         lifecycle: lifecycle,
         activeSession: activeSession,
+        visibleUntil: identical(visibleUntil, _stateSentinel)
+            ? _state.visibleUntil
+            : visibleUntil as DateTime?,
         nextTriggerAt: nextTriggerAt,
         displays: displays ?? _state.displays,
         lastResult: identical(lastResult, _stateSentinel)
@@ -329,6 +343,7 @@ class OverlayService extends ChangeNotifier {
     _transitionTo(
       OverlayState.idle,
       activeSession: null,
+      visibleUntil: null,
       nextTriggerAt: null,
       lastResult: OverlayResult(
         type: OverlayResultType.failed,
@@ -337,6 +352,21 @@ class OverlayService extends ChangeNotifier {
       ),
       lastError: error.toString(),
     );
+  }
+
+  DateTime _visibleUntilForShownEvent(
+    OverlayEvent event,
+    OverlaySession? session,
+  ) {
+    final DateTime startedAt =
+        session?.startedAt ?? event.occurredAt ?? DateTime.now();
+    final Duration duration =
+        session?.settings.duration.value ?? _state.settings.duration.value;
+    return startedAt.add(duration);
+  }
+
+  DateTime _visibleUntilForSession(OverlaySession session) {
+    return session.startedAt.add(session.settings.duration.value);
   }
 }
 

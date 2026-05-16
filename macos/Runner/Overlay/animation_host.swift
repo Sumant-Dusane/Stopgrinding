@@ -51,7 +51,7 @@ final class NativeOverlayMediaHost: AnimationHost {
     )
     mediaView.alphaValue = 1
     mediaView.isHidden = false
-    mediaView.startPlayback()
+    mediaView.startPlayback(duration: duration)
   }
 
   func stop() {
@@ -84,9 +84,6 @@ private final class OverlayMediaView: NSView {
   }
   private var playerLayer: AVPlayerLayer?
   private var player: AVPlayer?
-  private var boundaryObserver: Any?
-  private var itemDidReachEndObserver: NSObjectProtocol?
-  private var looper: AVPlayerLooper?
   private var sourceAssetURL: URL?
   private var playbackMode: PlaybackMode = .fullAsset
   private var hasAnimatedIn = false
@@ -126,7 +123,6 @@ private final class OverlayMediaView: NSView {
 
     sourceAssetURL = assetURL
     playbackMode = makePlaybackMode(for: item, assetURL: assetURL)
-    configurePlayer(for: playbackMode, assetURL: assetURL)
     hasAnimatedIn = false
     placeholderLabel.isHidden = true
     AppLogger.debug(
@@ -135,12 +131,21 @@ private final class OverlayMediaView: NSView {
     )
   }
 
-  func startPlayback() {
-    guard let player else {
+  func startPlayback(duration: TimeInterval) {
+    guard let sourceAssetURL else {
       AppLogger.warning(
         "OverlayMediaView",
         "Playback was requested without a configured native video player."
       )
+      return
+    }
+
+    configurePlayer(
+      for: playbackMode,
+      assetURL: sourceAssetURL,
+      playbackDuration: duration
+    )
+    guard let player else {
       return
     }
 
@@ -152,15 +157,14 @@ private final class OverlayMediaView: NSView {
   func stopPlayback() {
     player?.pause()
     player?.seek(to: .zero)
-    clearLoopObserver()
-    clearEndObserver()
     hasAnimatedIn = false
   }
 
-  private func configurePlayer(for mode: PlaybackMode, assetURL: URL) {
-    clearLoopObserver()
-    clearEndObserver()
-    looper = nil
+  private func configurePlayer(
+    for mode: PlaybackMode,
+    assetURL: URL,
+    playbackDuration: TimeInterval
+  ) {
     if playerLayer == nil {
       let layer = AVPlayerLayer()
       layer.frame = playerContainerView.bounds
@@ -180,21 +184,25 @@ private final class OverlayMediaView: NSView {
       player.actionAtItemEnd = .pause
       nextPlayer = player
     case .introThenLoop(let loopRange):
-      let playerItem = AVPlayerItem(url: assetURL)
-      playerItem.forwardPlaybackEndTime = loopRange.end
-      let player = AVPlayer(playerItem: playerItem)
+      let asset = makeTimedPlaybackComposition(
+        assetURL: assetURL,
+        playbackDuration: playbackDuration,
+        loopRange: loopRange,
+        includeIntro: true
+      )
+      let player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
       player.actionAtItemEnd = .pause
-      itemDidReachEndObserver = NotificationCenter.default.addObserver(
-        forName: .AVPlayerItemDidPlayToEndTime,
-        object: playerItem,
-        queue: .main
-      ) { [weak self] _ in
-        self?.startLoopPlayback(loopRange: loopRange)
-      }
       nextPlayer = player
     case .loopOnly(let loopRange):
-      let loopPlayer = makeLoopingPlayer(assetURL: assetURL, loopRange: loopRange)
-      nextPlayer = loopPlayer
+      let asset = makeTimedPlaybackComposition(
+        assetURL: assetURL,
+        playbackDuration: playbackDuration,
+        loopRange: loopRange,
+        includeIntro: false
+      )
+      let player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
+      player.actionAtItemEnd = .pause
+      nextPlayer = player
     }
 
     nextPlayer.isMuted = true
@@ -202,29 +210,12 @@ private final class OverlayMediaView: NSView {
     playerLayer?.player = nextPlayer
   }
 
-  private func clearLoopObserver() {
-    if let boundaryObserver, let player {
-      player.removeTimeObserver(boundaryObserver)
-    }
-    boundaryObserver = nil
-  }
-
-  private func clearEndObserver() {
-    if let itemDidReachEndObserver {
-      NotificationCenter.default.removeObserver(itemDidReachEndObserver)
-    }
-    itemDidReachEndObserver = nil
-  }
-
   private func showPlaceholder(_ title: String) {
     player?.pause()
     player = nil
-    looper = nil
     sourceAssetURL = nil
     playbackMode = .fullAsset
     hasAnimatedIn = false
-    clearLoopObserver()
-    clearEndObserver()
     playerLayer?.player = nil
     placeholderLabel.stringValue = "MISSING VIDEO\n\(title.uppercased())"
     placeholderLabel.isHidden = false
@@ -265,58 +256,80 @@ private final class OverlayMediaView: NSView {
     return .introThenLoop(loopRange: loopRange)
   }
 
-  private func startLoopPlayback(loopRange: CMTimeRange) {
-    guard let sourceAssetURL else {
-      return
-    }
-
-    AppLogger.debug(
-      "OverlayMediaView",
-      "Switching to seamless looping segment at \(CMTimeGetSeconds(loopRange.start))s."
-    )
-
-    clearLoopObserver()
-    clearEndObserver()
-    let loopPlayer = makeLoopingPlayer(assetURL: sourceAssetURL, loopRange: loopRange)
-    loopPlayer.play()
-    player = loopPlayer
-    playerLayer?.player = loopPlayer
-  }
-
-  private func makeLoopingPlayer(assetURL: URL, loopRange: CMTimeRange) -> AVQueuePlayer {
+  private func makeTimedPlaybackComposition(
+    assetURL: URL,
+    playbackDuration: TimeInterval,
+    loopRange: CMTimeRange,
+    includeIntro: Bool
+  ) -> AVAsset {
     let composition = AVMutableComposition()
+    let targetDuration = CMTime(
+      seconds: max(playbackDuration, 0),
+      preferredTimescale: 600
+    )
 
     do {
       let asset = AVAsset(url: assetURL)
+      let videoTrack = asset.tracks(withMediaType: .video).first
+      let audioTrack = asset.tracks(withMediaType: .audio).first
+      var insertionPoint = CMTime.zero
 
-      if let videoTrack = asset.tracks(withMediaType: .video).first,
-         let compositionVideoTrack = composition.addMutableTrack(
-           withMediaType: .video,
-           preferredTrackID: kCMPersistentTrackID_Invalid
-         ) {
-        try compositionVideoTrack.insertTimeRange(loopRange, of: videoTrack, at: .zero)
-        compositionVideoTrack.preferredTransform = videoTrack.preferredTransform
+      if includeIntro {
+        let introDuration = CMTimeMinimum(loopRange.start, targetDuration)
+        if CMTimeCompare(introDuration, .zero) > 0 {
+          let introRange = CMTimeRange(start: .zero, duration: introDuration)
+          try insert(timeRange: introRange, fromVideoTrack: videoTrack, audioTrack: audioTrack, into: composition, at: insertionPoint)
+          insertionPoint = insertionPoint + introDuration
+        }
       }
 
-      if let audioTrack = asset.tracks(withMediaType: .audio).first,
-         let compositionAudioTrack = composition.addMutableTrack(
-           withMediaType: .audio,
-           preferredTrackID: kCMPersistentTrackID_Invalid
-         ) {
-        try compositionAudioTrack.insertTimeRange(loopRange, of: audioTrack, at: .zero)
+      while CMTimeCompare(insertionPoint, targetDuration) < 0 {
+        let remainingDuration = targetDuration - insertionPoint
+        let segmentDuration = CMTimeMinimum(loopRange.duration, remainingDuration)
+        guard CMTimeCompare(segmentDuration, .zero) > 0 else {
+          break
+        }
+
+        let segmentRange = CMTimeRange(start: loopRange.start, duration: segmentDuration)
+        try insert(timeRange: segmentRange, fromVideoTrack: videoTrack, audioTrack: audioTrack, into: composition, at: insertionPoint)
+        insertionPoint = insertionPoint + segmentDuration
       }
     } catch {
       AppLogger.error(
         "OverlayMediaView",
-        "Failed to build loop composition for \(assetURL.lastPathComponent): \(error.localizedDescription)"
+        "Failed to build playback composition for \(assetURL.lastPathComponent): \(error.localizedDescription)"
       )
+      return AVAsset(url: assetURL)
     }
 
-    let templateItem = AVPlayerItem(asset: composition)
-    let queuePlayer = AVQueuePlayer()
-    queuePlayer.actionAtItemEnd = .none
-    looper = AVPlayerLooper(player: queuePlayer, templateItem: templateItem)
-    return queuePlayer
+    return composition
+  }
+
+  private func insert(
+    timeRange: CMTimeRange,
+    fromVideoTrack videoTrack: AVAssetTrack?,
+    audioTrack: AVAssetTrack?,
+    into composition: AVMutableComposition,
+    at insertionPoint: CMTime
+  ) throws {
+    if let videoTrack,
+       let compositionVideoTrack = composition.tracks(withMediaType: .video).first
+        ?? composition.addMutableTrack(
+          withMediaType: .video,
+          preferredTrackID: kCMPersistentTrackID_Invalid
+        ) {
+      try compositionVideoTrack.insertTimeRange(timeRange, of: videoTrack, at: insertionPoint)
+      compositionVideoTrack.preferredTransform = videoTrack.preferredTransform
+    }
+
+    if let audioTrack,
+       let compositionAudioTrack = composition.tracks(withMediaType: .audio).first
+        ?? composition.addMutableTrack(
+          withMediaType: .audio,
+          preferredTrackID: kCMPersistentTrackID_Invalid
+        ) {
+      try compositionAudioTrack.insertTimeRange(timeRange, of: audioTrack, at: insertionPoint)
+    }
   }
 
   private func runEntranceAnimationIfNeeded() {

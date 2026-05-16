@@ -8,6 +8,8 @@ enum MenuBarTrayAction {
   quitApp,
 }
 
+const String kBreakCountdownMenuKey = 'break-countdown';
+
 enum MenuBarTrayItemKind { action, separator }
 
 class MenuBarTrayItemSpec {
@@ -69,4 +71,30 @@ String resolveMenuBarTrayLabel(
     case MenuBarTrayAction.quitApp:
       return 'Quit StopGrinding';
   }
+}
+
+String formatTrayCountdown(Duration remaining) {
+  final Duration clamped = remaining.isNegative ? Duration.zero : remaining;
+  final int hours = clamped.inHours;
+  final int minutes = clamped.inMinutes.remainder(60);
+  final int seconds = clamped.inSeconds.remainder(60);
+  if (hours > 0) {
+    return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+  return '$minutes:${seconds.toString().padLeft(2, '0')}';
+}
+
+String resolveTrayTitle(Duration remaining) {
+  return formatTrayCountdown(remaining);
+}
+
+String resolveTrayToolTip(Duration? remaining) {
+  if (remaining == null) {
+    return 'StopGrinding';
+  }
+  return 'StopGrinding • Break ends in ${formatTrayCountdown(remaining)}';
+}
+
+String resolveBreakCountdownLabel(Duration remaining) {
+  return 'Break ends in ${formatTrayCountdown(remaining)}';
 }

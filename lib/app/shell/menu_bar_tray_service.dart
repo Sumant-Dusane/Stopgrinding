@@ -24,6 +24,7 @@ class MenuBarTrayService with TrayListener {
   final ShellWindowService shellWindowService;
 
   bool _isInitialized = false;
+  Timer? _countdownRefreshTimer;
   VoidCallback? _overlayStateListener;
 
   Future<void> initialize() async {
@@ -36,13 +37,14 @@ class MenuBarTrayService with TrayListener {
       'macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png',
       iconPosition: TrayIconPosition.left,
     );
-    await trayManager.setToolTip('StopGrinding');
-    await _rebuildMenu();
+    await _refreshTrayPresentation();
 
     _overlayStateListener = () {
-      _rebuildMenu();
+      _syncCountdownRefreshTimer();
+      unawaited(_refreshTrayPresentation());
     };
     overlayService.addListener(_overlayStateListener!);
+    _syncCountdownRefreshTimer();
     _isInitialized = true;
   }
 
@@ -55,6 +57,8 @@ class MenuBarTrayService with TrayListener {
       overlayService.removeListener(_overlayStateListener!);
       _overlayStateListener = null;
     }
+    _countdownRefreshTimer?.cancel();
+    _countdownRefreshTimer = null;
     trayManager.removeListener(this);
     await trayManager.destroy();
     _isInitialized = false;
@@ -97,24 +101,79 @@ class MenuBarTrayService with TrayListener {
     }
   }
 
-  Future<void> _rebuildMenu() async {
-    final OverlayState lifecycle = overlayService.state.lifecycle;
-    final Menu menu = Menu(
-      items: kMenuBarTrayItems
-          .map((spec) {
-            if (spec.kind == MenuBarTrayItemKind.separator) {
-              return MenuItem.separator();
-            }
+  Future<void> _refreshTrayPresentation() async {
+    final Duration? remaining = _remainingVisibleDuration();
+    await trayManager.setTitle(
+      remaining == null ? '' : resolveTrayTitle(remaining),
+    );
+    await trayManager.setToolTip(resolveTrayToolTip(remaining));
+    await _rebuildMenu(remaining: remaining);
+  }
 
-            final MenuBarTrayAction action = spec.action!;
-            return MenuItem(
-              key: action.name,
-              label: resolveMenuBarTrayLabel(action, lifecycle),
-            );
-          })
-          .toList(growable: false),
+  Future<void> _rebuildMenu({Duration? remaining}) async {
+    final OverlayState lifecycle = overlayService.state.lifecycle;
+    final List<MenuItem> items = <MenuItem>[];
+    if (remaining != null) {
+      items.add(
+        MenuItem(
+          key: kBreakCountdownMenuKey,
+          label: resolveBreakCountdownLabel(remaining),
+          disabled: true,
+        ),
+      );
+      items.add(MenuItem.separator());
+    }
+    final Menu menu = Menu(
+      items: <MenuItem>[
+        ...items,
+        ...kMenuBarTrayItems.map((spec) {
+          if (spec.kind == MenuBarTrayItemKind.separator) {
+            return MenuItem.separator();
+          }
+
+          final MenuBarTrayAction action = spec.action!;
+          return MenuItem(
+            key: action.name,
+            label: resolveMenuBarTrayLabel(action, lifecycle),
+          );
+        }),
+      ],
     );
     await trayManager.setContextMenu(menu);
+  }
+
+  Duration? _remainingVisibleDuration() {
+    final DateTime? visibleUntil = overlayService.state.visibleUntil;
+    if (visibleUntil == null) {
+      return null;
+    }
+
+    final Duration remaining = visibleUntil.difference(DateTime.now());
+    if (remaining <= Duration.zero) {
+      return Duration.zero;
+    }
+    return remaining;
+  }
+
+  void _syncCountdownRefreshTimer() {
+    final bool needsCountdown = overlayService.state.visibleUntil != null;
+    if (!needsCountdown) {
+      _countdownRefreshTimer?.cancel();
+      _countdownRefreshTimer = null;
+      return;
+    }
+
+    if (_countdownRefreshTimer != null) {
+      return;
+    }
+
+    _countdownRefreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (overlayService.state.visibleUntil == null) {
+        _syncCountdownRefreshTimer();
+        return;
+      }
+      unawaited(_refreshTrayPresentation());
+    });
   }
 
   MenuBarTrayAction? _parseAction(String? key) {

@@ -75,6 +75,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(service.state.lifecycle, OverlayState.visible);
+      expect(service.state.visibleUntil, DateTime(2026, 1, 1, 10, 2));
       expect(service.state.lastResult?.type, OverlayResultType.shown);
 
       controller.emit(
@@ -89,6 +90,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(service.state.lifecycle, OverlayState.scheduled);
+      expect(service.state.visibleUntil, isNull);
       expect(service.state.lastDismissReason, isNull);
       expect(service.state.lastResult?.type, OverlayResultType.dismissed);
       expect(
